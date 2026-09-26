@@ -1,11 +1,10 @@
 /**
  * Port — BookingRepository
  *
- * Defines every database operation the application layer needs for Booking data.
- * The application layer depends on this interface; the concrete implementation
- * lives in infrastructure/ and is injected at the composition root.
+ * All methods operate on whatever client the repository was constructed with.
+ * Inside a UnitOfWork callback, implementations receive a transactional client;
+ * outside, they use the shared Prisma client. No tx parameters needed here.
  */
-
 import type { Booking, BookingStatus } from '../../domain';
 
 export interface CreateBookingData {
@@ -32,44 +31,24 @@ export interface ListBookingsFilter {
 }
 
 export interface BookingRepository {
-  /**
-   * Persists a new booking atomically within the provided Prisma transaction.
-   * Must be called inside a transaction that already holds appropriate row locks.
-   */
-  create(data: CreateBookingData, tx: unknown): Promise<Booking>;
+  /** Persists a new booking. When called inside a UoW, runs within the active transaction. */
+  create(data: CreateBookingData): Promise<Booking>;
+
+  /** Fetches a booking by primary key. Returns null if not found. */
+  findById(id: string): Promise<Booking | null>;
 
   /**
-   * Fetches a booking by id.
-   * If tx is provided the query runs inside that transaction (enabling FOR UPDATE).
+   * Fetches a booking by id and acquires a SELECT FOR UPDATE row lock.
+   * Must be called on a transaction-bound repo (inside a UoW callback).
    */
-  findById(id: string, tx?: unknown): Promise<Booking | null>;
-
-  /**
-   * Fetches a booking by id and acquires a FOR UPDATE row lock within tx.
-   * Used by the cancellation use case to prevent concurrent cancellations.
-   */
-  findByIdForUpdate(id: string, tx: unknown): Promise<Booking | null>;
+  findByIdForUpdate(id: string): Promise<Booking | null>;
 
   /**
    * Marks a CONFIRMED booking as CANCELLED.
-   * Must be called inside a transaction that holds a FOR UPDATE lock on the row.
+   * Must be called on a transaction-bound repo after findByIdForUpdate.
    */
-  cancel(id: string, cancelledAt: Date, tx: unknown): Promise<Booking>;
+  cancel(id: string, cancelledAt: Date): Promise<Booking>;
 
-  /**
-   * Returns bookings matching the filter — used by the admin dashboard.
-   * No locking required (read-only).
-   */
+  /** Returns bookings matching the filter — used by the admin dashboard. */
   findAll(filter?: ListBookingsFilter): Promise<Booking[]>;
-
-  /**
-   * Returns the count of CONFIRMED bookings for a given mentor on a given
-   * mentor-local date string (YYYY-MM-DD).
-   * Must be called inside a transaction for consistency during booking creation.
-   */
-  countConfirmedByMentorAndDate(
-    mentorId: string,
-    mentorLocalDate: string,
-    tx: unknown,
-  ): Promise<number>;
 }

@@ -3,9 +3,10 @@
  */
 import 'dotenv/config';
 import express from 'express';
-import { prisma, getAvailabilityUseCase } from './infrastructure';
+import { prisma, getAvailabilityUseCase, bookClassUseCase } from './infrastructure';
 import { createAvailabilityRouter } from './interfaces/routes/availabilityRouter';
-import { errorHandler } from './interfaces/middleware/errorHandler';
+import { createBookingRouter }      from './interfaces/routes/bookingRouter';
+import { errorHandler }             from './interfaces/middleware/errorHandler';
 
 const app = express();
 app.use(express.json());
@@ -16,7 +17,10 @@ app.get('/', (_req, res) => {
 });
 
 // ── API routes ────────────────────────────────────────────────────────────
-app.use('/api', createAvailabilityRouter(getAvailabilityUseCase));
+const api = express.Router();
+api.use(createAvailabilityRouter(getAvailabilityUseCase));
+api.use(createBookingRouter(bookClassUseCase));
+app.use('/api', api);
 
 // ── Error handler (must come AFTER all routes) ────────────────────────────
 app.use(errorHandler);

@@ -53,11 +53,18 @@ export class LeadTimeViolationError extends Error {
 
 export class SlotNotAvailableError extends Error {
   readonly code = 'SLOT_NOT_AVAILABLE';
-  constructor() {
+  constructor(public readonly alternateSlots: AlternateSlot[] = []) {
     super('No mentor is available for the requested time slot.');
     this.name = 'SlotNotAvailableError';
   }
 }
+
+/** A lightweight slot descriptor used in error responses when the primary slot is full. */
+export interface AlternateSlot {
+  startUtc: string;
+  endUtc: string;
+}
+
 
 export class BookingNotFoundError extends Error {
   readonly code = 'BOOKING_NOT_FOUND';

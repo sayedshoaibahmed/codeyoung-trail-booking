@@ -1,11 +1,10 @@
 /**
  * Infrastructure — PrismaIdempotencyStore
  *
- * Concrete implementation of the IdempotencyStore port.
- * Injected at the composition root; never imported by application or domain layers.
+ * Implements IdempotencyStore. Constructor receives the appropriate Prisma client.
  */
 import type { PrismaClient } from '@prisma/client';
-import type { IdempotencyStore, IdempotencyRecord } from '../../application/ports';
+import type { IdempotencyStore, IdempotencyRecord, CreateIdempotencyData } from '../../application/ports';
 
 export class PrismaIdempotencyStore implements IdempotencyStore {
   constructor(private readonly db: PrismaClient) {}
@@ -14,33 +13,29 @@ export class PrismaIdempotencyStore implements IdempotencyStore {
     const record = await this.db.idempotencyKey.findUnique({ where: { key } });
     if (!record) return null;
     return {
-      key: record.key,
-      payloadHash: record.payloadHash,
+      key:          record.key,
+      payloadHash:  record.payloadHash,
       responseJson: record.responseJson,
-      bookingId: record.bookingId,
-      createdAt: record.createdAt,
+      bookingId:    record.bookingId,
+      createdAt:    record.createdAt,
     };
   }
 
-  async create(
-    record: Omit<IdempotencyRecord, 'createdAt'>,
-    tx: unknown,
-  ): Promise<IdempotencyRecord> {
-    const client = tx as PrismaClient;
-    const created = await client.idempotencyKey.create({
+  async create(data: CreateIdempotencyData): Promise<IdempotencyRecord> {
+    const record = await this.db.idempotencyKey.create({
       data: {
-        key: record.key,
-        payloadHash: record.payloadHash,
-        responseJson: record.responseJson,
-        bookingId: record.bookingId,
+        key:          data.key,
+        payloadHash:  data.payloadHash,
+        responseJson: data.responseJson,
+        bookingId:    data.bookingId,
       },
     });
     return {
-      key: created.key,
-      payloadHash: created.payloadHash,
-      responseJson: created.responseJson,
-      bookingId: created.bookingId,
-      createdAt: created.createdAt,
+      key:          record.key,
+      payloadHash:  record.payloadHash,
+      responseJson: record.responseJson,
+      bookingId:    record.bookingId,
+      createdAt:    record.createdAt,
     };
   }
 }
