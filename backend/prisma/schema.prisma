@@ -1,0 +1,115 @@
+// Prisma schema for CodeYoung Trial Class Booking System
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+}
+
+enum ShiftType {
+  SHIFT_1 // 09:00–21:00 IST
+  SHIFT_2 // 21:00–09:00 IST (overnight)
+}
+
+// ---------------------------------------------------------------------------
+// Mentor
+// ---------------------------------------------------------------------------
+
+model Mentor {
+  id        String    @id @default(uuid())
+  name      String
+  email     String    @unique
+  /// IANA timezone identifier, e.g. 'Asia/Kolkata'
+  timezone  String    @default("Asia/Kolkata")
+  shift     ShiftType
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now()) @db.Timestamptz
+  updatedAt DateTime  @updatedAt @db.Timestamptz
+
+  bookings  Booking[]
+
+  @@map("mentors")
+}
+
+// ---------------------------------------------------------------------------
+// Booking
+// ---------------------------------------------------------------------------
+
+model Booking {
+  id                   String        @id @default(uuid())
+  mentor               Mentor        @relation(fields: [mentorId], references: [id])
+  mentorId             String
+
+  parentName           String
+  parentEmail          String
+  childName            String
+  /// IANA timezone string supplied by the parent
+  parentTimezone       String
+
+  /// UTC start of the 1-hour session — stored as TIMESTAMPTZ
+  startTimeUtc         DateTime      @db.Timestamptz
+  /// UTC end — always startTimeUtc + 1 hour
+  endTimeUtc           DateTime      @db.Timestamptz
+
+  /// Mentor's IANA timezone captured at booking creation for stable daily-cap math
+  mentorTimezone       String
+  /// ISO date YYYY-MM-DD of the slot in the mentor's local timezone.
+  /// Pre-computed so daily-cap queries don't require runtime TZ conversion.
+  mentorLocalDate      String
+
+  meetingLink          String
+  status               BookingStatus @default(CONFIRMED)
+
+  /// bcrypt hash of the raw cancellation token. Raw token is never stored.
+  cancellationTokenHash String
+
+  cancelledAt          DateTime?     @db.Timestamptz
+
+  /// Client-supplied idempotency key
+  idempotencyKey       String        @unique
+
+  createdAt            DateTime      @default(now()) @db.Timestamptz
+  updatedAt            DateTime      @updatedAt @db.Timestamptz
+
+  idempotencyRecord    IdempotencyKey?
+
+  // Partial unique index: a mentor may not have two CONFIRMED bookings that
+  // start at the same UTC time. CANCELLED bookings are excluded so that a
+  // cancelled slot can be rebooked.
+  // Enforced via raw SQL migration — see migration file.
+
+  @@index([mentorId, startTimeUtc])
+  @@index([mentorId, mentorLocalDate, status])
+  @@index([status])
+  @@map("bookings")
+}
+
+// ---------------------------------------------------------------------------
+// IdempotencyKey
+// ---------------------------------------------------------------------------
+
+model IdempotencyKey {
+  id           String   @id @default(uuid())
+  key          String   @unique
+  /// SHA-256 hex digest of the canonical request body (sorted keys)
+  payloadHash  String
+  /// Original response body serialised as JSON string
+  responseJson String
+  booking      Booking  @relation(fields: [bookingId], references: [id])
+  bookingId    String   @unique
+  createdAt    DateTime @default(now()) @db.Timestamptz
+
+  @@map("idempotency_keys")
+}
