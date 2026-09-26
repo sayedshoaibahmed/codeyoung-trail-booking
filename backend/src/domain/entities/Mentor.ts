@@ -9,16 +9,24 @@ export enum MentorShiftType {
 }
 
 export interface MentorShift {
-  /** Day of week: 0 = Sunday, 6 = Saturday. Null means applies to all days. */
+  id: string;
+  mentorId: string;
+  /** Day of week: 0=Sunday … 6=Saturday. null means applies to every day. */
   dayOfWeek: number | null;
-  /** Local time string HH:mm in mentor's timezone */
+  /** Local time string HH:mm in the mentor's IANA timezone, e.g. '09:00' or '21:00' */
   localStartTime: string;
-  /** Local time string HH:mm in mentor's timezone */
+  /** Local time string HH:mm in the mentor's IANA timezone, e.g. '21:00' or '09:00' */
   localEndTime: string;
-  /** True when end time is on the following calendar day (overnight shift) */
+  /**
+   * True when localEndTime is on the following calendar day.
+   * Example: localStartTime='21:00', localEndTime='09:00' → crossesMidnight=true (Shift 2)
+   */
   crossesMidnight: boolean;
   active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
+
 
 export interface Mentor {
   id: string;

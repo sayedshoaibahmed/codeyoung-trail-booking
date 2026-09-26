@@ -28,8 +28,38 @@ CREATE TABLE "mentors" (
 CREATE UNIQUE INDEX "mentors_email_key" ON "mentors"("email");
 
 -- ──────────────────────────────────────────────────────────────────────────────
+-- mentor_shifts — persisted availability schedule per mentor
+-- ──────────────────────────────────────────────────────────────────────────────
+
+CREATE TABLE "mentor_shifts" (
+    "id"              TEXT        NOT NULL,
+    "mentorId"        TEXT        NOT NULL,
+    -- Day of week: 0=Sunday … 6=Saturday. NULL = applies every day.
+    "dayOfWeek"       INTEGER,
+    -- Local time HH:mm in the mentor's IANA timezone, e.g. '09:00' or '21:00'
+    "localStartTime"  TEXT        NOT NULL,
+    -- Local time HH:mm in the mentor's IANA timezone, e.g. '21:00' or '09:00'
+    "localEndTime"    TEXT        NOT NULL,
+    -- TRUE when localEndTime is on the following calendar day (overnight shifts).
+    -- Shift 2 example: localStartTime='21:00', localEndTime='09:00' → crossesMidnight=TRUE
+    "crossesMidnight" BOOLEAN     NOT NULL DEFAULT false,
+    "active"          BOOLEAN     NOT NULL DEFAULT true,
+    "createdAt"       TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt"       TIMESTAMPTZ NOT NULL,
+
+    CONSTRAINT "mentor_shifts_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX "mentor_shifts_mentorId_idx" ON "mentor_shifts"("mentorId");
+
+ALTER TABLE "mentor_shifts" ADD CONSTRAINT "mentor_shifts_mentorId_fkey"
+    FOREIGN KEY ("mentorId") REFERENCES "mentors"("id")
+    ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- ──────────────────────────────────────────────────────────────────────────────
 -- bookings
 -- ──────────────────────────────────────────────────────────────────────────────
+
 
 CREATE TABLE "bookings" (
     "id"                    TEXT             NOT NULL,

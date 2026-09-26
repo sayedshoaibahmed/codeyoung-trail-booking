@@ -28,20 +28,53 @@ enum ShiftType {
 // ---------------------------------------------------------------------------
 
 model Mentor {
-  id        String    @id @default(uuid())
+  id        String        @id @default(uuid())
   name      String
-  email     String    @unique
+  email     String        @unique
   /// IANA timezone identifier, e.g. 'Asia/Kolkata'
-  timezone  String    @default("Asia/Kolkata")
+  timezone  String        @default("Asia/Kolkata")
   shift     ShiftType
-  active    Boolean   @default(true)
-  createdAt DateTime  @default(now()) @db.Timestamptz
-  updatedAt DateTime  @updatedAt @db.Timestamptz
+  active    Boolean       @default(true)
+  createdAt DateTime      @default(now()) @db.Timestamptz
+  updatedAt DateTime      @updatedAt @db.Timestamptz
 
   bookings  Booking[]
+  shifts    MentorShift[]
 
   @@map("mentors")
 }
+
+// ---------------------------------------------------------------------------
+// MentorShift — persisted availability schedule for a mentor
+// ---------------------------------------------------------------------------
+
+model MentorShift {
+  id             String   @id @default(uuid())
+  mentor         Mentor   @relation(fields: [mentorId], references: [id])
+  mentorId       String
+
+  /// Day of week this shift applies to: 0=Sunday … 6=Saturday.
+  /// NULL means the shift applies to every day of the week.
+  dayOfWeek      Int?
+
+  /// Local start time as HH:mm in the mentor's IANA timezone (e.g. "09:00", "21:00")
+  localStartTime String
+
+  /// Local end time as HH:mm in the mentor's IANA timezone (e.g. "21:00", "09:00")
+  localEndTime   String
+
+  /// True when localEndTime is on the following calendar day (overnight shift).
+  /// Example: localStartTime="21:00", localEndTime="09:00" → crossesMidnight=true
+  crossesMidnight Boolean @default(false)
+
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @db.Timestamptz
+  updatedAt      DateTime @updatedAt @db.Timestamptz
+
+  @@index([mentorId])
+  @@map("mentor_shifts")
+}
+
 
 // ---------------------------------------------------------------------------
 // Booking
