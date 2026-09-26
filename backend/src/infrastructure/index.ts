@@ -1,23 +1,27 @@
 /**
  * Composition root — infrastructure/index.ts
  *
- * Instantiates all concrete infrastructure implementations and wires them to
- * the application-layer port interfaces. This is the ONLY file in the project
- * that is allowed to import from both application/ and infrastructure/ in the
- * same place.
- *
- * Nothing in domain/ or application/ imports from this file. Only interfaces/
- * and index.ts (the entry point) import from here.
+ * The ONLY file allowed to import from both application/ and infrastructure/
+ * in the same place. All port-to-implementation bindings happen here.
  */
 import prisma from './database/prismaClient';
 import { PrismaMentorRepository } from './database/PrismaMentorRepository';
 import { PrismaBookingRepository } from './database/PrismaBookingRepository';
 import { PrismaIdempotencyStore } from './database/PrismaIdempotencyStore';
+import { LuxonTimezoneService } from './timezone/LuxonTimezoneService';
+import { GetAvailabilityUseCase } from '../application/useCases/GetAvailability';
 
-// Singletons — created once, shared across the application lifetime.
-export const mentorRepository = new PrismaMentorRepository(prisma);
+// ── Infrastructure singletons ─────────────────────────────────────────────
+export const mentorRepository  = new PrismaMentorRepository(prisma);
 export const bookingRepository = new PrismaBookingRepository(prisma);
-export const idempotencyStore = new PrismaIdempotencyStore(prisma);
+export const idempotencyStore  = new PrismaIdempotencyStore(prisma);
+export const timezoneService   = new LuxonTimezoneService();
 
-// Re-export prisma for use in the composition root / entry point only.
+// ── Application use cases ─────────────────────────────────────────────────
+export const getAvailabilityUseCase = new GetAvailabilityUseCase(
+  mentorRepository,
+  timezoneService,
+);
+
+// Re-export prisma for graceful shutdown in index.ts
 export { prisma };
