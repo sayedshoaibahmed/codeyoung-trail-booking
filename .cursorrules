@@ -1,0 +1,50 @@
+# CodeYoung Trial Class Booking System - Development Conventions
+
+## 1. BACKEND — CLEAN ARCHITECTURE CONVENTIONS
+
+The backend uses strict Clean Architecture with four layers:
+
+- **backend/src/domain**: Pure business entities and rules (Mentor, Shift, Booking, timezone/cap/overlap logic). Zero framework, Prisma, or Express imports.
+- **backend/src/application**: Use cases (BookClass, CancelClass, GetAvailability, GetAdminDashboard) that orchestrate domain logic through repository/service interfaces (ports) only. No direct Prisma or Express imports.
+- **backend/src/infrastructure**: Concrete implementations of the ports: Prisma repositories, Luxon-backed timezone service, email/mock-email service, idempotency store.
+- **backend/src/interfaces**: Express routes, controllers, DTOs, middleware. Translates HTTP to use-case calls and back. No business logic here.
+
+### Dependency Rule:
+- `domain` depends on nothing internal.
+- `application` depends only on `domain`.
+- `infrastructure` and `interfaces` depend on `application`/`domain` through interfaces, never the reverse.
+
+### General Enforcements:
+- Small functions
+- Single responsibility
+- Clear naming
+- Low duplication
+- Proper error handling
+
+## 2. FRONTEND — FEATURE-SLICED DESIGN CONVENTIONS
+
+The frontend uses full Feature-Sliced Design, organized into six layers:
+
+- **frontend/src/app**: App-wide setup: providers, router, global styles, entry point.
+- **frontend/src/pages**: Route-level compositions (BookingPage, ConfirmationPage, ClassRoomPage, AdminDashboardPage). No business logic.
+- **frontend/src/widgets**: Composite UI blocks made of features/entities (BookingFormWidget, MentorLoadWidget, DashboardWidget).
+- **frontend/src/features**: User-facing actions (book-slot, cancel-booking, select-timezone, view-availability).
+- **frontend/src/entities**: Business objects and their UI/data primitives (booking, mentor, slot).
+- **frontend/src/shared**: Reusable UI kit, API client base, types, constants with no business meaning.
+
+### Import Rule:
+A layer may import only from layers below it in the list above (e.g., `features` can use `entities`/`shared`, but never `pages`/`widgets`).
+
+Note: No enterprise-scale slicing beyond what the project needs — segments within each layer stay small and purposeful.
+
+## 3. GENERAL
+
+Do **not** introduce the following technologies/architectures:
+- Microservices
+- Redis
+- Kafka
+- Kubernetes
+- Event buses
+- WebSockets
+
+Clean Architecture in this project means clear layering, not distributed infrastructure.
