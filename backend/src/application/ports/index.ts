@@ -4,3 +4,9 @@ export type { IdempotencyStore, IdempotencyRecord, CreateIdempotencyData } from 
 export type { TimezoneService, LocalTimeInfo } from './TimezoneService';
 export type { UnitOfWork, TransactionContext } from './UnitOfWork';
 export type { EmailService, BookingConfirmationParams, BookingCancellationParams } from './EmailService';
+export type {
+  AdminDashboardRepository,
+  AdminDashboardData,
+  BookingSummaryDto,
+  MentorUtilizationDto,
+} from './AdminDashboardRepository';

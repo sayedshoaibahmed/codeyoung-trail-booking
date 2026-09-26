@@ -24,10 +24,12 @@
   "type": "commonjs",
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "@types/nodemailer": "^8.0.2",
     "bcrypt": "^6.0.0",
     "dotenv": "^18.0.4",
     "express": "^5.2.1",
     "luxon": "^3.7.2",
+    "nodemailer": "^10.0.10",
     "zod": "^4.6.5"
   },
   "devDependencies": {

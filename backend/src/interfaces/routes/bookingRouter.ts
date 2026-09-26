@@ -1,38 +1,31 @@
 /**
- * Express router — POST /api/bookings
+ * Express router — /api/bookings
  *
- * Validates the request body with Zod at this boundary; a clean, typed DTO
- * is passed into the use case. No Prisma or Luxon imports here.
+ * Routes:
+ *   POST /api/bookings          — create (BookClassUseCase)
+ *   GET  /api/bookings/:id      — fetch (GetBookingUseCase)
+ *   POST /api/bookings/:id/cancel — cancel (CancelClassUseCase)
  *
- * Idempotency-Key header is required for all POST requests.
- *
- * Error mapping for SlotNotAvailableError: returns HTTP 409 with alternate slots.
+ * Design rules:
+ *   - Zod validates ALL inputs at this boundary.
+ *   - Controllers only translate HTTP ↔ use case; no business logic.
+ *   - Domain errors are forwarded to the centralised error handler via next(err).
+ *   - No Prisma imports.
  */
 import { Router } from 'express';
 import { z } from 'zod';
-import type { BookClassUseCase } from '../../application/useCases/BookClass';
-import { SlotNotAvailableError } from '../../domain/errors';
+import type { BookClassUseCase }   from '../../application/useCases/BookClass';
+import type { GetBookingUseCase }  from '../../application/useCases/GetBooking';
+import type { CancelClassUseCase } from '../../application/useCases/CancelClass';
+import { SlotNotAvailableError }   from '../../domain/errors';
 
-// ── Zod schema ────────────────────────────────────────────────────────────────
+// ── Zod schemas ───────────────────────────────────────────────────────────────
 
 const BookClassBodySchema = z.object({
-  parentName: z
-    .string()
-    .trim()
-    .min(1, 'parentName is required and must not be blank')
-    .max(200),
-  parentEmail: z
-    .string()
-    .email('parentEmail must be a valid email address'),
-  childName: z
-    .string()
-    .trim()
-    .min(1, 'childName is required and must not be blank')
-    .max(200),
-  parentTimezone: z
-    .string()
-    .min(1, 'parentTimezone is required'),
-  /** Local date-time in the parent's timezone — NO timezone suffix. */
+  parentName:        z.string().trim().min(1, 'parentName is required').max(200),
+  parentEmail:       z.string().email('parentEmail must be a valid email address'),
+  childName:         z.string().trim().min(1, 'childName is required').max(200),
+  parentTimezone:    z.string().min(1, 'parentTimezone is required'),
   requestedStartIso: z
     .string()
     .regex(
@@ -41,42 +34,58 @@ const BookClassBodySchema = z.object({
     ),
 });
 
+const BookingIdSchema = z.object({
+  id: z.string().uuid('Booking id must be a valid UUID'),
+});
 
-export function createBookingRouter(bookClass: BookClassUseCase): Router {
+const CancelBodySchema = z.object({
+  cancellationToken: z
+    .string()
+    .min(1, 'cancellationToken is required')
+    .max(256),
+});
+
+// ── Helper: Zod 400 response ──────────────────────────────────────────────────
+
+function zodError(res: import('express').Response, result: z.ZodError): void {
+  res.status(400).json({
+    code: 'VALIDATION_ERROR',
+    message: 'Request validation failed.',
+    errors: result.issues.map((i) => ({ field: i.path.join('.'), message: i.message })),
+  });
+}
+
+// ── Router factory ────────────────────────────────────────────────────────────
+
+export function createBookingRouter(
+  bookClass:   BookClassUseCase,
+  getBooking:  GetBookingUseCase,
+  cancelClass: CancelClassUseCase,
+): Router {
   const router = Router();
 
-  router.post('/bookings', async (req, res, next) => {
+  // ── POST /api/bookings ────────────────────────────────────────────────────
+  router.post('/', async (req, res, next) => {
     try {
-      // ── Validate Idempotency-Key header ───────────────────────────────────
-      const idempotencyKey = req.headers['idempotency-key'];
-      if (!idempotencyKey || typeof idempotencyKey !== 'string' || !idempotencyKey.trim()) {
+      // Idempotency-Key header (required)
+      const rawKey = req.headers['idempotency-key'];
+      if (!rawKey || typeof rawKey !== 'string' || !rawKey.trim()) {
         res.status(400).json({
           code: 'MISSING_IDEMPOTENCY_KEY',
-          message: 'The Idempotency-Key header is required for booking creation.',
+          message: 'The Idempotency-Key header is required.',
         });
         return;
       }
 
-      // ── Validate request body with Zod ────────────────────────────────────
-      const parseResult = BookClassBodySchema.safeParse(req.body);
-      if (!parseResult.success) {
-        res.status(400).json({
-          code: 'VALIDATION_ERROR',
-          message: 'Request body is invalid.',
-          errors: parseResult.error.issues.map((i) => ({
-            field: i.path.join('.'),
-            message: i.message,
-          })),
-        });
-        return;
-      }
+      const parsed = BookClassBodySchema.safeParse(req.body);
+      if (!parsed.success) { zodError(res, parsed.error); return; }
 
-      // ── Invoke use case with clean DTO ────────────────────────────────────
-      const dto = { ...parseResult.data, idempotencyKey: idempotencyKey.trim() };
-      const result = await bookClass.execute(dto);
+      const result = await bookClass.execute({
+        ...parsed.data,
+        idempotencyKey: rawKey.trim(),
+      });
       res.status(201).json(result);
     } catch (err) {
-      // Special handling for SlotNotAvailableError: include alternate slots in body
       if (err instanceof SlotNotAvailableError) {
         res.status(409).json({
           code: err.code,
@@ -85,6 +94,38 @@ export function createBookingRouter(bookClass: BookClassUseCase): Router {
         });
         return;
       }
+      next(err);
+    }
+  });
+
+  // ── GET /api/bookings/:id ─────────────────────────────────────────────────
+  router.get('/:id', async (req, res, next) => {
+    try {
+      const parsed = BookingIdSchema.safeParse(req.params);
+      if (!parsed.success) { zodError(res, parsed.error); return; }
+
+      const result = await getBooking.execute(parsed.data.id);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // ── POST /api/bookings/:id/cancel ─────────────────────────────────────────
+  router.post('/:id/cancel', async (req, res, next) => {
+    try {
+      const paramsParsed = BookingIdSchema.safeParse(req.params);
+      if (!paramsParsed.success) { zodError(res, paramsParsed.error); return; }
+
+      const bodyParsed = CancelBodySchema.safeParse(req.body);
+      if (!bodyParsed.success) { zodError(res, bodyParsed.error); return; }
+
+      const result = await cancelClass.execute({
+        bookingId:         paramsParsed.data.id,
+        cancellationToken: bodyParsed.data.cancellationToken,
+      });
+      res.json(result);
+    } catch (err) {
       next(err);
     }
   });
