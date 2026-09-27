@@ -15,15 +15,21 @@ export function buildConfirmationEmailText(params: {
   viewBookingUrl: string;
 }): string {
   const { booking, mentorName, rawCancellationToken, viewBookingUrl } = params;
-  const tz = booking.parentTimezone;
-  const dateLabel = formatInTz(booking.startTimeUtc, tz, {
+  const parentTz = booking.parentTimezone;
+  const mentorTz = booking.mentorTimezone;
+  const dateOptions: Intl.DateTimeFormatOptions = {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-  });
-  const startLabel = formatInTz(booking.startTimeUtc, tz, { hour: 'numeric', minute: '2-digit' });
-  const endLabel = formatInTz(booking.endTimeUtc, tz, { hour: 'numeric', minute: '2-digit' });
+  };
+  const timeOptions: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' };
+  const parentDate = formatInTz(booking.startTimeUtc, parentTz, dateOptions);
+  const parentStart = formatInTz(booking.startTimeUtc, parentTz, timeOptions);
+  const parentEnd = formatInTz(booking.endTimeUtc, parentTz, timeOptions);
+  const mentorDate = formatInTz(booking.startTimeUtc, mentorTz, dateOptions);
+  const mentorStart = formatInTz(booking.startTimeUtc, mentorTz, timeOptions);
+  const mentorEnd = formatInTz(booking.endTimeUtc, mentorTz, timeOptions);
   const status = booking.status === 'CANCELLED' ? 'CANCELLED' : 'CONFIRMED';
 
   return [
@@ -36,9 +42,17 @@ export function buildConfirmationEmailText(params: {
     `Student:    ${booking.childName}`,
     `Parent:     ${booking.parentName}`,
     `Mentor:     ${mentorName}`,
-    `Class date: ${dateLabel}`,
-    `Class time: ${startLabel} – ${endLabel}`,
-    `Timezone:   ${tz}`,
+    '',
+    'Your local time:',
+    `  ${parentDate}`,
+    `  ${parentStart} – ${parentEnd}`,
+    `Timezone: ${parentTz}`,
+    '',
+    'Mentor time:',
+    `  ${mentorDate}`,
+    `  ${mentorStart} – ${mentorEnd}`,
+    `Timezone: ${mentorTz}`,
+    '',
     `Join class: ${booking.meetingLink}`,
     `View Booking: ${viewBookingUrl}`,
     '',

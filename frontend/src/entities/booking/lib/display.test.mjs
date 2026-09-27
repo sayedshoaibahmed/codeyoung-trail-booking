@@ -87,6 +87,42 @@ test('Back to Booking is a predictable Link to /', () => {
   assert.doesNotMatch(page, /history\.back/);
 });
 
+test('admin dashboard formats mentor clock with stored mentorTimezone, not the browser zone', () => {
+  const widget = readFileSync(join(src, 'widgets/dashboard/ui/DashboardWidget.tsx'), 'utf8');
+  const api = readFileSync(join(src, 'features/view-dashboard/api/index.ts'), 'utf8');
+  const display = readFileSync(join(src, 'entities/booking/lib/display.ts'), 'utf8');
+
+  assert.match(api, /mentorTimezone:\s*string/);
+  assert.match(widget, /Time \(UTC\):/);
+  assert.match(widget, /timeZone:\s*['"]UTC['"]/);
+  assert.match(widget, /formatDateTime\(booking\.startTimeUtc\)/);
+  assert.match(widget, /formatBookingTime\(booking\.startTimeUtc,\s*booking\.mentorTimezone\)/);
+  assert.match(widget, /formatBookingTime\(booking\.endTimeUtc,\s*booking\.mentorTimezone\)/);
+  assert.match(widget, /Mentor time \(\{booking\.mentorTimezone\}\)/);
+  assert.doesNotMatch(widget, /resolvedOptions\(\)/);
+  assert.doesNotMatch(widget, /formatBookingTime\(booking\.startTimeUtc\)\s*[),]/);
+  assert.match(display, /timeZone:\s*timezone/);
+});
+
+test('admin UTC and mentor-local clocks stay distinct for the same instant', () => {
+  const instant = new Date('2024-11-04T15:00:00.000Z');
+  const utc = new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'UTC',
+  }).format(instant);
+  const mentor = new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'Asia/Kolkata',
+  }).format(instant);
+
+  assert.equal(utc, '15:00');
+  assert.match(mentor, /8:30/);
+  assert.notEqual(mentor, utc);
+});
+
 test('refresh path is the booking id in the URL, loaded via GET /bookings/:id', () => {
   const page = readFileSync(join(src, 'pages/confirmation/ui/ConfirmationPage.tsx'), 'utf8');
   assert.match(page, /useParams/);

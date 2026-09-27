@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useDashboard } from '../../../features/view-dashboard/model/useDashboard';
 import { formatMentorShift, MentorBadge } from '../../../entities/mentor';
 import { classRoomPath } from '../../../shared/lib/classRoomPath';
+import { formatBookingTime } from '../../../entities/booking/lib/display';
 import type { DashboardBookingDto, MentorUtilizationDto } from '../../../features/view-dashboard/api';
 
 function formatDateTime(isoString: string): string {
@@ -32,6 +33,10 @@ function BookingCard({
       </div>
       <div className="text-sm text-slate-600 space-y-1.5 font-medium break-words">
         <p><strong className="text-slate-700">Time (UTC):</strong> {formatDateTime(booking.startTimeUtc)} (1 hr)</p>
+        <p><strong className="text-slate-700">Mentor time ({booking.mentorTimezone}):</strong>{' '}
+          {formatBookingTime(booking.startTimeUtc, booking.mentorTimezone)} –{' '}
+          {formatBookingTime(booking.endTimeUtc, booking.mentorTimezone)}
+        </p>
         <p><strong className="text-slate-700">Mentor local date:</strong> {booking.mentorLocalDate}</p>
         <div className="pt-3 pb-1">
           <MentorBadge

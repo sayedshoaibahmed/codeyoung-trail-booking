@@ -8,6 +8,7 @@ export interface DashboardBookingDto {
   mentorId: string;
   startTimeUtc: string;
   endTimeUtc: string;
+  mentorTimezone: string;
   mentorLocalDate: string;
   status: 'CONFIRMED' | 'CANCELLED';
   cancelledAt: string | null;

@@ -91,6 +91,7 @@ export class PrismaAdminDashboardRepository implements AdminDashboardRepository 
       mentorId: string;
       startTimeUtc: Date;
       endTimeUtc: Date;
+      mentorTimezone: string;
       mentorLocalDate: string;
       status: PrismaStatus;
       cancelledAt: Date | null;
@@ -103,6 +104,7 @@ export class PrismaAdminDashboardRepository implements AdminDashboardRepository 
       mentorId:        b.mentorId,
       startTimeUtc:    b.startTimeUtc.toISOString(),
       endTimeUtc:      b.endTimeUtc.toISOString(),
+      mentorTimezone:  b.mentorTimezone,
       mentorLocalDate: b.mentorLocalDate,
       status:          b.status,
       cancelledAt:     b.cancelledAt?.toISOString() ?? null,

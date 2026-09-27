@@ -16,6 +16,7 @@ export interface BookingSummaryDto {
   mentorId: string;
   startTimeUtc: string;   // ISO-8601
   endTimeUtc: string;     // ISO-8601
+  mentorTimezone: string;
   mentorLocalDate: string;
   status: string;
   cancelledAt: string | null;
