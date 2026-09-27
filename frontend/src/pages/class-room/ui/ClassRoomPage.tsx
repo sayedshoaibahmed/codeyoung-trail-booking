@@ -1,8 +1,10 @@
 import { useParams, Link } from 'react-router-dom';
 import { Button } from '../../../shared/ui/button';
+import { useBooking } from '../../../features/view-booking/model/useBooking';
 
 export function ClassRoomPage() {
   const { id } = useParams<{ id: string }>();
+  const { booking, isLoading, error } = useBooking(id);
 
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col font-sans overflow-x-hidden">
@@ -26,11 +28,28 @@ export function ClassRoomPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-3">Mock Meeting Room</h2>
-          <p className="text-slate-400 mb-8 sm:mb-10 text-base sm:text-lg leading-relaxed max-w-xl mx-auto break-words">
-            This is a simulated classroom environment for booking reference <strong className="text-slate-200 break-all">{id}</strong>.
-            In a real scenario, this would be an interactive video call.
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-3">Demo Class Room</h2>
+          <p className="text-slate-400 mb-6 text-base sm:text-lg leading-relaxed max-w-xl mx-auto break-words">
+            This is the dummy classroom for booking{' '}
+            <strong className="text-slate-200 break-all">{id}</strong>.
+            No external video provider is used.
           </p>
+          {isLoading && (
+            <p className="text-slate-500 mb-8 animate-pulse">Loading class details…</p>
+          )}
+          {error && !isLoading && (
+            <p className="text-amber-300/90 mb-8 text-sm break-words">
+              Class page is still available. Booking details could not be loaded: {error}
+            </p>
+          )}
+          {booking && !isLoading && (
+            <div className="mb-8 text-left bg-slate-900/50 rounded-xl p-4 sm:p-5 border border-slate-700 text-sm space-y-2">
+              <p className="text-slate-300"><span className="text-slate-500">Student</span> {booking.childName}</p>
+              <p className="text-slate-300"><span className="text-slate-500">Mentor</span> {booking.mentorName}</p>
+              <p className="text-slate-300"><span className="text-slate-500">Status</span> {booking.status}</p>
+              <p className="text-slate-300 break-words"><span className="text-slate-500">Starts (UTC)</span> {booking.startTimeUtc}</p>
+            </div>
+          )}
           <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-center">
             <Button variant="secondary" className="px-8 h-12 rounded-xl bg-slate-700 text-white hover:bg-slate-600 border-none w-full sm:w-auto">
               Mute Mic

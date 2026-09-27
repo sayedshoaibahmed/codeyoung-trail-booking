@@ -1,5 +1,7 @@
+import { Link } from 'react-router-dom';
 import { useDashboard } from '../../../features/view-dashboard/model/useDashboard';
 import { formatMentorShift, MentorBadge } from '../../../entities/mentor';
+import { classRoomPath } from '../../../shared/lib/classRoomPath';
 import type { DashboardBookingDto, MentorUtilizationDto } from '../../../features/view-dashboard/api';
 
 function formatDateTime(isoString: string): string {
@@ -43,9 +45,12 @@ function BookingCard({
         </div>
         {booking.status === 'CONFIRMED' && (
           <p className="pt-2 border-t border-slate-100 mt-2">
-            <a href={booking.meetingLink} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:text-teal-800 font-bold inline-flex items-center break-all">
+            <Link
+              to={classRoomPath(booking.id)}
+              className="text-teal-600 hover:text-teal-800 font-bold inline-flex items-center break-all"
+            >
               Join Room →
-            </a>
+            </Link>
           </p>
         )}
       </div>

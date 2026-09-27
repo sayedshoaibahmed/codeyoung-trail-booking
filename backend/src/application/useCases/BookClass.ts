@@ -183,7 +183,16 @@ export class BookClassUseCase {
 
     // ── 9. Pre-compute outside transaction to minimise lock hold time ─────────
     const bookingId  = randomUUID();
-    const meetingLink = `https://meet.codeyoung.com/class/${bookingId}`;
+    // Dummy demo class: the frontend Classroom route is /class/:bookingId.
+    // FRONTEND_ORIGIN (e.g. https://codeyoung-trail-booking.vercel.app) makes
+    // emailed links absolute; otherwise store the in-app path.
+    const frontendOrigin = (process.env.FRONTEND_ORIGIN ?? '')
+      .split(',')[0]
+      ?.trim()
+      .replace(/\/$/, '') ?? '';
+    const meetingLink = frontendOrigin
+      ? `${frontendOrigin}/class/${bookingId}`
+      : `/class/${bookingId}`;
     const rawToken   = randomBytes(CANCELLATION_TOKEN_BYTES).toString('hex');
     const tokenHash  = await bcryptHash(rawToken, BCRYPT_ROUNDS);
 

@@ -73,7 +73,7 @@ function makeBooking(id: string, mentorId: string): Booking {
     endTimeUtc: SLOT_END_UTC,
     mentorTimezone: 'Asia/Kolkata',
     mentorLocalDate: '2024-11-04',
-    meetingLink: `https://meet.codeyoung.com/class/${id}`,
+    meetingLink: `/class/${id}`,
     status: BookingStatus.CONFIRMED,
     cancellationTokenHash: 'hash',
     cancelledAt: null,
@@ -89,7 +89,7 @@ function makeResult(bookingId: string, mentorName: string): BookClassResult {
     mentorName,
     startUtc: SLOT_START_UTC.toISOString(),
     endUtc: SLOT_END_UTC.toISOString(),
-    meetingLink: `https://meet.codeyoung.com/class/${bookingId}`,
+    meetingLink: `/class/${bookingId}`,
     cancellationToken: 'raw-token-abc',
     status: 'CONFIRMED',
   };
@@ -124,7 +124,22 @@ function buildEmailService(): EmailService {
 
 function buildBookingRepo(booking: Booking): BookingRepository {
   return {
-    create:            vi.fn().mockResolvedValue(booking),
+    create:            vi.fn().mockImplementation(async (data: CreateBookingData): Promise<Booking> => ({
+      ...booking,
+      id:                    data.id,
+      mentorId:              data.mentorId,
+      parentName:            data.parentName,
+      parentEmail:           data.parentEmail,
+      childName:             data.childName,
+      parentTimezone:        data.parentTimezone,
+      startTimeUtc:          data.startTimeUtc,
+      endTimeUtc:            data.endTimeUtc,
+      mentorTimezone:        data.mentorTimezone,
+      mentorLocalDate:       data.mentorLocalDate,
+      meetingLink:           data.meetingLink,
+      cancellationTokenHash: data.cancellationTokenHash,
+      idempotencyKey:        data.idempotencyKey,
+    })),
     findById:          vi.fn().mockResolvedValue(null),
     findByIdForUpdate: vi.fn().mockResolvedValue(null),
     cancel:            vi.fn().mockResolvedValue(booking),
@@ -192,15 +207,52 @@ describe('BookClassUseCase — happy path', () => {
     const idemStore   = buildIdempotencyStore();
     const uow         = buildUoW(mentorRepo, bookingRepo, idemStore);
 
-    const uc = new BookClassUseCase(uow, idemStore, buildTzService(), buildEmailService(), mentorRepo);
-    const result = await uc.execute(BASE_DTO);
+    const previousOrigin = process.env.FRONTEND_ORIGIN;
+    delete process.env.FRONTEND_ORIGIN;
+    try {
+      const uc = new BookClassUseCase(uow, idemStore, buildTzService(), buildEmailService(), mentorRepo);
+      const result = await uc.execute(BASE_DTO);
 
-    expect(result.status).toBe('CONFIRMED');
-    expect(result.bookingId).toBeDefined();
-    expect(result.cancellationToken).toBeDefined();
-    expect(result.cancellationToken.length).toBeGreaterThan(0);
-    expect(result.meetingLink).toContain('meet.codeyoung.com');
-    expect(result.mentorName).toBe('Mentor mentor-a');
+      expect(result.status).toBe('CONFIRMED');
+      expect(result.bookingId).toBeDefined();
+      expect(result.cancellationToken).toBeDefined();
+      expect(result.cancellationToken.length).toBeGreaterThan(0);
+      expect(result.meetingLink).toBe(`/class/${result.bookingId}`);
+      expect(result.meetingLink).not.toContain('meet.codeyoung.com');
+      expect(result.mentorName).toBe('Mentor mentor-a');
+    } finally {
+      if (previousOrigin === undefined) {
+        delete process.env.FRONTEND_ORIGIN;
+      } else {
+        process.env.FRONTEND_ORIGIN = previousOrigin;
+      }
+    }
+  });
+
+  it('prefixes the dummy classroom path with FRONTEND_ORIGIN when set', async () => {
+    const previousOrigin = process.env.FRONTEND_ORIGIN;
+    process.env.FRONTEND_ORIGIN = 'https://codeyoung-trail-booking.vercel.app/';
+    try {
+      const booking     = makeBooking('booking-1', 'mentor-a');
+      const mentorRepo  = { findEligibleMentors: vi.fn().mockResolvedValue([makeMentor('mentor-a')]), findById: vi.fn(), findAll: vi.fn() } as unknown as MentorRepository;
+      const bookingRepo = buildBookingRepo(booking);
+      const idemStore   = buildIdempotencyStore();
+      const uow         = buildUoW(mentorRepo, bookingRepo, idemStore);
+
+      const uc = new BookClassUseCase(uow, idemStore, buildTzService(), buildEmailService(), mentorRepo);
+      const result = await uc.execute({ ...BASE_DTO, idempotencyKey: 'idempotency-key-origin' });
+
+      expect(result.meetingLink).toBe(
+        `https://codeyoung-trail-booking.vercel.app/class/${result.bookingId}`,
+      );
+      expect(result.meetingLink).not.toContain('meet.codeyoung.com');
+    } finally {
+      if (previousOrigin === undefined) {
+        delete process.env.FRONTEND_ORIGIN;
+      } else {
+        process.env.FRONTEND_ORIGIN = previousOrigin;
+      }
+    }
   });
 
   it('passes correct slot UTC times to findEligibleMentors', async () => {

@@ -11,6 +11,7 @@
  */
 import type { Booking } from '../model/types';
 import { MentorBadge, mentorFromBooking } from '../../mentor';
+import { classRoomPath } from '../../../shared/lib/classRoomPath';
 
 interface BookingDetailCardProps {
   booking: Booking;
@@ -76,12 +77,10 @@ export function BookingDetailCard({ booking }: BookingDetailCardProps) {
         <div className="sm:col-span-2 pt-4 border-t border-slate-100">
           <p className="text-slate-500 font-medium mb-1 uppercase tracking-wide text-xs">Meeting link</p>
           <a
-            href={booking.meetingLink}
-            target="_blank"
-            rel="noopener noreferrer"
+            href={classRoomPath(booking.id)}
             className="font-semibold text-teal-600 hover:text-teal-800 hover:underline break-all"
           >
-            {booking.meetingLink}
+            {classRoomPath(booking.id)}
           </a>
         </div>
       </div>

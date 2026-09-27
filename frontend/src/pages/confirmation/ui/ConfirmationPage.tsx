@@ -22,6 +22,7 @@ import { useBooking }         from '../../../features/view-booking/model/useBook
 import { CancelBookingDialog } from '../../../features/cancel-booking/ui/CancelBookingDialog';
 import { BookingDetailCard }  from '../../../entities/booking/ui/BookingDetailCard';
 import { Button }             from '../../../shared/ui/button';
+import { classRoomPath }      from '../../../shared/lib/classRoomPath';
 
 export function ConfirmationPage() {
   const { id }   = useParams<{ id: string }>();
@@ -112,7 +113,7 @@ export function ConfirmationPage() {
           {booking.status === 'CONFIRMED' ? (
             <>
               <Link
-                to={`/class/${booking.id}`}
+                to={classRoomPath(booking.id)}
                 className="inline-flex items-center justify-center w-full sm:w-auto whitespace-nowrap rounded-xl text-base font-bold transition-colors bg-amber-500 text-slate-900 hover:bg-amber-600 shadow-sm h-14 px-8"
               >
                 Join Class Room
