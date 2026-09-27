@@ -7,15 +7,18 @@ export function BookingPage() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap justify-between gap-x-3 gap-y-2 min-h-16 py-3 items-center">
-            <div className="flex items-center space-x-2 min-w-0">
+            <Link to="/" className="flex items-center space-x-2 min-w-0">
               <div className="w-8 h-8 shrink-0 bg-amber-500 rounded-lg flex items-center justify-center font-bold text-white shadow-sm">
                 CY
               </div>
               <span className="text-lg sm:text-xl font-extrabold tracking-tight text-teal-900 truncate">
                 CodeYoung
               </span>
-            </div>
-            <nav className="shrink-0">
+            </Link>
+            <nav className="flex flex-wrap items-center gap-x-4 gap-y-1 shrink-0">
+              <Link to="/" className="text-sm font-semibold text-slate-600 hover:text-teal-900 transition-colors whitespace-nowrap">
+                ← Home
+              </Link>
               <Link to="/admin" className="text-sm font-semibold text-teal-700 hover:text-teal-900 transition-colors whitespace-nowrap">
                 Admin Area →
               </Link>

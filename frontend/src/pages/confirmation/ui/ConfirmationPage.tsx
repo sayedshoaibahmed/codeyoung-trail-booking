@@ -51,7 +51,7 @@ export function ConfirmationPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="text-center max-w-md">
           <p className="text-red-500 mb-4 break-words">{error ?? 'Booking not found.'}</p>
-          <Link to="/" className="text-blue-600 hover:underline text-sm">
+          <Link to="/book" className="text-blue-600 hover:underline text-sm">
             ← Back to booking
           </Link>
         </div>
@@ -64,7 +64,7 @@ export function ConfirmationPage() {
     <div className="min-h-screen bg-slate-50 py-8 sm:py-12 px-4 font-sans text-slate-900 overflow-x-hidden">
       <div className="max-w-3xl mx-auto bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-slate-100 p-4 sm:p-8 lg:p-12 min-w-0">
         <Link
-          to="/"
+          to="/book"
           className="inline-flex items-center text-sm font-semibold text-teal-800 hover:text-teal-950 mb-6"
         >
           ← Back to Booking
@@ -138,7 +138,7 @@ export function ConfirmationPage() {
             </>
           ) : (
             <Link
-              to="/"
+              to="/book"
               className="inline-flex items-center justify-center w-full sm:w-auto whitespace-nowrap rounded-xl text-base font-bold transition-colors bg-amber-500 text-slate-900 hover:bg-amber-600 shadow-sm h-14 px-8"
             >
               Book a New Class

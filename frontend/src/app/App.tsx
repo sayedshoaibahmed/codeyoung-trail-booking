@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom';
+import { LandingPage } from '../pages/landing/ui/LandingPage';
 import { BookingPage } from '../pages/booking/ui/BookingPage';
 import { ConfirmationPage } from '../pages/confirmation/ui/ConfirmationPage';
 import { BookingAccessPage } from '../pages/booking-access/ui/BookingAccessPage';
@@ -8,7 +9,8 @@ import { AdminDashboardPage } from '../pages/admin-dashboard/ui/AdminDashboardPa
 export function App() {
   return (
     <Routes>
-      <Route path="/" element={<BookingPage />} />
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/book" element={<BookingPage />} />
       <Route path="/b/:accessToken" element={<BookingAccessPage />} />
       <Route path="/confirmation/:id" element={<ConfirmationPage />} />
       <Route path="/class/:id" element={<ClassRoomPage />} />

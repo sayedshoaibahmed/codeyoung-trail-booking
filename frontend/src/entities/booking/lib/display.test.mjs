@@ -85,9 +85,9 @@ test('cancel uses the existing token dialog and is hidden after start or cancel'
   assert.doesNotMatch(page, /cancellationTokenHash/);
 });
 
-test('Back to Booking is a predictable Link to /', () => {
+test('Back to Booking is a predictable Link to /book', () => {
   const page = readFileSync(join(src, 'pages/confirmation/ui/ConfirmationPage.tsx'), 'utf8');
-  assert.match(page, /to=["']\/["']/);
+  assert.match(page, /to=["']\/book["']/);
   assert.match(page, /Back to Booking/);
   assert.doesNotMatch(page, /history\.back/);
 });

@@ -14,7 +14,7 @@ export function AdminDashboardPage() {
               <h1 className="text-base sm:text-xl font-extrabold text-teal-950 tracking-tight truncate">CodeYoung Admin</h1>
             </div>
             <nav className="shrink-0">
-              <Link to="/" className="text-sm font-semibold text-teal-700 hover:text-teal-900 transition-colors whitespace-nowrap">
+              <Link to="/book" className="text-sm font-semibold text-teal-700 hover:text-teal-900 transition-colors whitespace-nowrap">
                 ← Booking
               </Link>
             </nav>
