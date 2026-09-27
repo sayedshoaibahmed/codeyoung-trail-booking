@@ -1,6 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
 import { Button } from '../../../shared/ui/button';
 import { useBooking } from '../../../features/view-booking/model/useBooking';
+import { formatBookingDate, formatBookingTime } from '../../../entities/booking/lib/display';
 
 export function ClassRoomPage() {
   const { id } = useParams<{ id: string }>();
@@ -47,7 +48,13 @@ export function ClassRoomPage() {
               <p className="text-slate-300"><span className="text-slate-500">Student</span> {booking.childName}</p>
               <p className="text-slate-300"><span className="text-slate-500">Mentor</span> {booking.mentorName}</p>
               <p className="text-slate-300"><span className="text-slate-500">Status</span> {booking.status}</p>
-              <p className="text-slate-300 break-words"><span className="text-slate-500">Starts (UTC)</span> {booking.startTimeUtc}</p>
+              <p className="text-slate-300 break-words">
+                <span className="text-slate-500">Class</span>{' '}
+                {formatBookingDate(booking.startTimeUtc, booking.parentTimezone)},{' '}
+                {formatBookingTime(booking.startTimeUtc, booking.parentTimezone)} –{' '}
+                {formatBookingTime(booking.endTimeUtc, booking.parentTimezone)}
+              </p>
+              <p className="text-slate-400 text-xs break-words">Timezone: {booking.parentTimezone}</p>
             </div>
           )}
           <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-center">

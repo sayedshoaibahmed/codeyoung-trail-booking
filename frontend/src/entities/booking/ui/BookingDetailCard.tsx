@@ -1,32 +1,23 @@
 /**
  * entities/booking — ui/BookingDetailCard.tsx
  *
- * Minimal display component for a confirmed or cancelled booking.
- * Shows the parent name, mentor (via MentorBadge), time in parent timezone,
- * mentor-local date, meeting link, and status badge.
- *
- * FSD rule: no imports from features, widgets, or pages.
- * Imports MentorBadge from entities/mentor — cross-entity import is allowed
- * because both live at the same layer and mentor is not a consumer of booking.
+ * Displays the stored booking (GET /bookings/:id). Mentor and times come from
+ * the booking record — they are not recomputed on the client.
  */
 import type { Booking } from '../model/types';
 import { MentorBadge, mentorFromBooking } from '../../mentor';
 import { classRoomPath } from '../../../shared/lib/classRoomPath';
+import { formatBookingDate, formatBookingTime } from '../lib/display';
 
 interface BookingDetailCardProps {
   booking: Booking;
 }
 
-function formatInTz(isoUtc: string, timezone: string): string {
-  return new Intl.DateTimeFormat('en-US', {
-    dateStyle: 'full',
-    timeStyle: 'short',
-    timeZone: timezone,
-  }).format(new Date(isoUtc));
-}
-
 export function BookingDetailCard({ booking }: BookingDetailCardProps) {
   const mentor = mentorFromBooking(booking);
+  const dateLabel = formatBookingDate(booking.startTimeUtc, booking.parentTimezone);
+  const startLabel = formatBookingTime(booking.startTimeUtc, booking.parentTimezone);
+  const endLabel = formatBookingTime(booking.endTimeUtc, booking.parentTimezone);
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -43,46 +34,51 @@ export function BookingDetailCard({ booking }: BookingDetailCardProps) {
           </span>
       </div>
       <div className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm min-w-0">
-        {/* Parent */}
+        <div className="sm:col-span-2">
+          <p className="text-slate-500 font-medium mb-1 uppercase tracking-wide text-xs">Booking reference</p>
+          <p className="font-mono text-slate-800 text-sm break-all">{booking.id}</p>
+        </div>
+
         <div>
           <p className="text-slate-500 font-medium mb-1 uppercase tracking-wide text-xs">Parent</p>
           <p className="font-semibold text-slate-900 text-base break-words">{booking.parentName}</p>
         </div>
 
-        {/* Child */}
         <div>
           <p className="text-slate-500 font-medium mb-1 uppercase tracking-wide text-xs">Student</p>
           <p className="font-semibold text-slate-900 text-base break-words">{booking.childName}</p>
         </div>
 
-        {/* Class time in parent timezone */}
         <div className="sm:col-span-2 bg-amber-50 rounded-xl p-4 border border-amber-100">
-          <p className="text-amber-800 font-medium mb-1 uppercase tracking-wide text-xs break-words">Class Time ({booking.parentTimezone})</p>
+          <p className="text-amber-800 font-medium mb-1 uppercase tracking-wide text-xs">Class date</p>
+          <p className="font-bold text-amber-900 text-base sm:text-lg break-words">{dateLabel}</p>
+          <p className="text-amber-800 font-medium mt-3 mb-1 uppercase tracking-wide text-xs">Class time</p>
           <p className="font-bold text-amber-900 text-base sm:text-lg break-words">
-            {formatInTz(booking.startTimeUtc, booking.parentTimezone)}
+            {startLabel} – {endLabel}
           </p>
-          <p className="text-amber-700 text-xs mt-1 font-medium">Duration: 1 Hour</p>
+          <p className="text-amber-700 text-xs mt-2 font-medium break-words">
+            Timezone: {booking.parentTimezone}
+          </p>
         </div>
 
-        {/* Mentor */}
         <div className="sm:col-span-2">
-          <p className="text-slate-500 font-medium mb-2 uppercase tracking-wide text-xs">Mentor</p>
+          <p className="text-slate-500 font-medium mb-2 uppercase tracking-wide text-xs">Assigned mentor</p>
           <div className="inline-block">
             <MentorBadge mentor={mentor} showTimezone />
           </div>
-          <p className="text-slate-500 text-xs mt-2 font-medium">Mentor-local date: {booking.mentorLocalDate}</p>
         </div>
 
-        {/* Meeting link */}
-        <div className="sm:col-span-2 pt-4 border-t border-slate-100">
-          <p className="text-slate-500 font-medium mb-1 uppercase tracking-wide text-xs">Meeting link</p>
-          <a
-            href={classRoomPath(booking.id)}
-            className="font-semibold text-teal-600 hover:text-teal-800 hover:underline break-all"
-          >
-            {classRoomPath(booking.id)}
-          </a>
-        </div>
+        {booking.status === 'CONFIRMED' && (
+          <div className="sm:col-span-2 pt-4 border-t border-slate-100">
+            <p className="text-slate-500 font-medium mb-1 uppercase tracking-wide text-xs">Join class</p>
+            <a
+              href={classRoomPath(booking.id)}
+              className="font-semibold text-teal-600 hover:text-teal-800 hover:underline break-all"
+            >
+              {classRoomPath(booking.id)}
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );

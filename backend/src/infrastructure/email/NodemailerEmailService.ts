@@ -17,6 +17,7 @@
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import type { EmailService, BookingConfirmationParams, BookingCancellationParams } from '../../application/ports/EmailService';
+import { buildConfirmationEmailText } from './bookingEmailContent';
 
 let transport: Transporter | null = null;
 let fromAddress = '"CodeYoung" <no-reply@codeyoung.com>';
@@ -60,22 +61,7 @@ export class NodemailerEmailService implements EmailService {
         from:    fromAddress,
         to:      booking.parentEmail,
         subject: '✅ Your CodeYoung trial class is confirmed!',
-        text: [
-          `Dear ${booking.parentName},`,
-          '',
-          `Your trial class for ${booking.childName} has been confirmed.`,
-          '',
-          `Mentor:  ${mentorName}`,
-          `Date:    ${booking.startTimeUtc.toUTCString()}`,
-          `Link:    ${booking.meetingLink}`,
-          '',
-          `To cancel this booking (before the class starts), use your cancellation token:`,
-          `  ${rawCancellationToken}`,
-          '',
-          `Keep this token safe — it will not be shown again.`,
-          '',
-          'The CodeYoung Team',
-        ].join('\n'),
+        text: buildConfirmationEmailText({ booking, mentorName, rawCancellationToken }),
       });
 
       const previewUrl = nodemailer.getTestMessageUrl(info);

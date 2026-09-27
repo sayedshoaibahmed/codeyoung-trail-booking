@@ -21,6 +21,7 @@ import { useParams, useLocation, Link } from 'react-router-dom';
 import { useBooking }         from '../../../features/view-booking/model/useBooking';
 import { CancelBookingDialog } from '../../../features/cancel-booking/ui/CancelBookingDialog';
 import { BookingDetailCard }  from '../../../entities/booking/ui/BookingDetailCard';
+import { canOfferCancellation } from '../../../entities/booking/lib/display';
 import { Button }             from '../../../shared/ui/button';
 import { classRoomPath }      from '../../../shared/lib/classRoomPath';
 
@@ -62,6 +63,12 @@ export function ConfirmationPage() {
   return (
     <div className="min-h-screen bg-slate-50 py-8 sm:py-12 px-4 font-sans text-slate-900 overflow-x-hidden">
       <div className="max-w-3xl mx-auto bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-slate-100 p-4 sm:p-8 lg:p-12 min-w-0">
+        <Link
+          to="/"
+          className="inline-flex items-center text-sm font-semibold text-teal-800 hover:text-teal-950 mb-6"
+        >
+          ← Back to Booking
+        </Link>
 
         {/* ── Status header ── */}
         <div className="text-center mb-10">
@@ -109,18 +116,24 @@ export function ConfirmationPage() {
         )}
 
         {/* ── Actions ── */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-4 justify-center mt-8">
           {booking.status === 'CONFIRMED' ? (
             <>
               <Link
                 to={classRoomPath(booking.id)}
                 className="inline-flex items-center justify-center w-full sm:w-auto whitespace-nowrap rounded-xl text-base font-bold transition-colors bg-amber-500 text-slate-900 hover:bg-amber-600 shadow-sm h-14 px-8"
               >
-                Join Class Room
+                Join Class
               </Link>
-              <Button variant="outline" size="lg" className="h-14 rounded-xl px-8 w-full sm:w-auto" onClick={() => setShowCancelDialog(true)}>
-                Cancel Booking
-              </Button>
+              {canOfferCancellation(booking) ? (
+                <Button variant="outline" size="lg" className="h-14 rounded-xl px-8 w-full sm:w-auto" onClick={() => setShowCancelDialog(true)}>
+                  Cancel Booking
+                </Button>
+              ) : (
+                <p className="w-full text-center text-sm text-slate-500 font-medium">
+                  Cancellation is no longer available because the class has started.
+                </p>
+              )}
             </>
           ) : (
             <Link

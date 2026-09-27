@@ -6,6 +6,7 @@
  * Never throws — swallows all errors to satisfy the fire-and-forget contract.
  */
 import type { EmailService, BookingConfirmationParams, BookingCancellationParams } from '../../application/ports/EmailService';
+import { buildConfirmationEmailText } from './bookingEmailContent';
 
 export class MockEmailService implements EmailService {
   async sendBookingConfirmation(params: BookingConfirmationParams): Promise<void> {
@@ -13,11 +14,9 @@ export class MockEmailService implements EmailService {
       const { booking, mentorName, rawCancellationToken } = params;
       console.log(
         `[mock-email] BOOKING CONFIRMATION\n` +
-        `  To:      ${booking.parentEmail}\n` +
-        `  Class:   ${booking.startTimeUtc.toISOString()} – ${booking.endTimeUtc.toISOString()} UTC\n` +
-        `  Mentor:  ${mentorName}\n` +
-        `  Link:    ${booking.meetingLink}\n` +
-        `  Cancel:  Use token ${rawCancellationToken.slice(0, 8)}... (keep safe)\n`,
+        `  To: ${booking.parentEmail}\n` +
+        buildConfirmationEmailText({ booking, mentorName, rawCancellationToken }) +
+        '\n',
       );
     } catch (err) {
       console.error('[mock-email] Confirmation email failed:', err);
