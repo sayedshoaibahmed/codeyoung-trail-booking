@@ -43,7 +43,8 @@ describe('demo classroom link (Join Room)', () => {
 
     const page = readFileSync(join(FRONTEND_SRC, 'pages/class-room/ui/ClassRoomPage.tsx'), 'utf8');
     expect(page).toContain("useParams<{ id: string }>()");
-    expect(page).toContain('useBooking(id)');
+    expect(page).toContain('leaveClassPath');
+    expect(page).toContain('End Call');
     expect(page).toContain('Demo Class Room');
     expect(page).not.toContain(FORBIDDEN_HOST);
   });

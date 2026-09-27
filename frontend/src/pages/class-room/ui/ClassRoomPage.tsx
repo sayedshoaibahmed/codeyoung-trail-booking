@@ -1,11 +1,18 @@
-import { useParams, Link } from 'react-router-dom';
+/**
+ * Dummy classroom. End Call / Leave Class only navigate away.
+ * They must not cancel the booking or touch cancellation credentials.
+ */
+import { useParams, useLocation, Link } from 'react-router-dom';
 import { Button } from '../../../shared/ui/button';
-import { useBooking } from '../../../features/view-booking/model/useBooking';
+import { leaveClassPath, type ClassRoomNavState } from '../../../shared/lib/classRoomPath';
 import { formatBookingDate, formatBookingTime } from '../../../entities/booking/lib/display';
 
 export function ClassRoomPage() {
   const { id } = useParams<{ id: string }>();
-  const { booking, isLoading, error } = useBooking(id);
+  const location = useLocation();
+  const navState = (location.state ?? {}) as ClassRoomNavState;
+  const summary = navState.classSummary;
+  const exitTo = leaveClassPath(navState.accessToken);
 
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col font-sans overflow-x-hidden">
@@ -16,11 +23,11 @@ export function ClassRoomPage() {
           </div>
           <h1 className="text-base sm:text-xl font-bold tracking-tight text-slate-100 truncate">Live Classroom</h1>
         </div>
-        <Link to={`/confirmation/${id}`} className="text-sm font-medium text-slate-400 hover:text-white transition-colors shrink-0 whitespace-nowrap">
+        <Link to={exitTo} className="text-sm font-medium text-slate-400 hover:text-white transition-colors shrink-0 whitespace-nowrap">
           Leave Class
         </Link>
       </div>
-      
+
       <div className="flex-1 flex items-center justify-center p-4 sm:p-8">
         <div className="max-w-3xl w-full bg-slate-800 rounded-2xl sm:rounded-3xl p-6 sm:p-12 text-center shadow-2xl border border-slate-700 relative overflow-hidden min-w-0">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-500 to-amber-500" />
@@ -35,26 +42,18 @@ export function ClassRoomPage() {
             <strong className="text-slate-200 break-all">{id}</strong>.
             No external video provider is used.
           </p>
-          {isLoading && (
-            <p className="text-slate-500 mb-8 animate-pulse">Loading class details…</p>
-          )}
-          {error && !isLoading && (
-            <p className="text-amber-300/90 mb-8 text-sm break-words">
-              Class page is still available. Booking details could not be loaded: {error}
-            </p>
-          )}
-          {booking && !isLoading && (
+          {summary && (
             <div className="mb-8 text-left bg-slate-900/50 rounded-xl p-4 sm:p-5 border border-slate-700 text-sm space-y-2">
-              <p className="text-slate-300"><span className="text-slate-500">Student</span> {booking.childName}</p>
-              <p className="text-slate-300"><span className="text-slate-500">Mentor</span> {booking.mentorName}</p>
-              <p className="text-slate-300"><span className="text-slate-500">Status</span> {booking.status}</p>
+              <p className="text-slate-300"><span className="text-slate-500">Student</span> {summary.childName}</p>
+              <p className="text-slate-300"><span className="text-slate-500">Mentor</span> {summary.mentorName}</p>
+              <p className="text-slate-300"><span className="text-slate-500">Status</span> {summary.status}</p>
               <p className="text-slate-300 break-words">
                 <span className="text-slate-500">Class</span>{' '}
-                {formatBookingDate(booking.startTimeUtc, booking.parentTimezone)},{' '}
-                {formatBookingTime(booking.startTimeUtc, booking.parentTimezone)} –{' '}
-                {formatBookingTime(booking.endTimeUtc, booking.parentTimezone)}
+                {formatBookingDate(summary.startTimeUtc, summary.parentTimezone)},{' '}
+                {formatBookingTime(summary.startTimeUtc, summary.parentTimezone)} –{' '}
+                {formatBookingTime(summary.endTimeUtc, summary.parentTimezone)}
               </p>
-              <p className="text-slate-400 text-xs break-words">Timezone: {booking.parentTimezone}</p>
+              <p className="text-slate-400 text-xs break-words">Timezone: {summary.parentTimezone}</p>
             </div>
           )}
           <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-center">
@@ -64,12 +63,15 @@ export function ClassRoomPage() {
             <Button variant="secondary" className="px-8 h-12 rounded-xl bg-slate-700 text-white hover:bg-slate-600 border-none w-full sm:w-auto">
               Stop Video
             </Button>
-            <Link to={`/confirmation/${id}`} className="w-full sm:w-auto">
+            <Link to={exitTo} className="w-full sm:w-auto">
               <Button variant="destructive" className="px-8 h-12 rounded-xl font-bold bg-red-600 hover:bg-red-700 w-full">
                 End Call
               </Button>
             </Link>
           </div>
+          <p className="mt-6 text-slate-500 text-xs">
+            Ending the call leaves the classroom. It does not cancel the booking.
+          </p>
         </div>
       </div>
     </div>

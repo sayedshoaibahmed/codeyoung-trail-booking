@@ -23,7 +23,7 @@ import { CancelBookingDialog } from '../../../features/cancel-booking/ui/CancelB
 import { BookingDetailCard }  from '../../../entities/booking/ui/BookingDetailCard';
 import { canOfferCancellation } from '../../../entities/booking/lib/display';
 import { Button }             from '../../../shared/ui/button';
-import { classRoomPath }      from '../../../shared/lib/classRoomPath';
+import { classRoomPath, classSummaryFromBooking } from '../../../shared/lib/classRoomPath';
 
 export function ConfirmationPage() {
   const { id }   = useParams<{ id: string }>();
@@ -121,6 +121,7 @@ export function ConfirmationPage() {
             <>
               <Link
                 to={classRoomPath(booking.id)}
+                state={{ classSummary: classSummaryFromBooking(booking) }}
                 className="inline-flex items-center justify-center w-full sm:w-auto whitespace-nowrap rounded-xl text-base font-bold transition-colors bg-amber-500 text-slate-900 hover:bg-amber-600 shadow-sm h-14 px-8"
               >
                 Join Class
