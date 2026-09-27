@@ -68,7 +68,7 @@ export function BookingFormWidget() {
   const { book, isSubmitting, error: bookingError } = useBookSlot();
 
   const onSubmit = async (data: FormValues) => {
-    if (!selectedSlotIso || isSubmitting) return;
+    if (!selectedSlotIso || isSubmitting || isSlotsLoading) return;
     
     // Requested start should be local time string without TZ suffix
     // selectedSlotIso is UTC, convert it to local
@@ -169,25 +169,47 @@ export function BookingFormWidget() {
             <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded shrink-0">Duration: 1 Hour</span>
           </div>
           
-          {isSlotsLoading ? (
-            <div className="animate-pulse grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-12 w-full bg-slate-100 rounded-lg"></div>)}
-            </div>
-          ) : slotsError ? (
-            <p className="text-sm text-red-600 font-medium p-3 bg-red-50 rounded-lg break-words">{slotsError}</p>
-          ) : slots.length > 0 ? (
-            <GroupedSlotGrid
-              slots={slots}
-              timezone={timezone}
-              selectedSlotIso={selectedSlotIso}
-              onSelect={setSelectedSlotIso}
-            />
-          ) : (
-            <div className="p-5 sm:p-8 border-2 border-dashed border-slate-200 rounded-xl text-center bg-slate-50">
-              <p className="text-slate-500 font-medium">No slots available for this date.</p>
-              <p className="text-slate-400 text-sm mt-1">Please try selecting another day.</p>
+          {isSlotsLoading && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="mb-4 p-4 rounded-xl border border-slate-200 bg-slate-50"
+            >
+              <p className="text-sm font-semibold text-slate-800">Loading slots…</p>
+              <p className="text-sm text-slate-600 mt-1">
+                Checking availability for the selected date.
+              </p>
             </div>
           )}
+          <div aria-busy={isSlotsLoading}>
+            {isSlotsLoading ? (
+              <div
+                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3 min-w-0"
+                aria-hidden="true"
+              >
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                  <div
+                    key={i}
+                    className="h-12 w-full rounded-xl border-2 border-slate-200 bg-slate-100 pointer-events-none"
+                  />
+                ))}
+              </div>
+            ) : slotsError ? (
+              <p className="text-sm text-red-600 font-medium p-3 bg-red-50 rounded-lg break-words">{slotsError}</p>
+            ) : slots.length > 0 ? (
+              <GroupedSlotGrid
+                slots={slots}
+                timezone={timezone}
+                selectedSlotIso={selectedSlotIso}
+                onSelect={setSelectedSlotIso}
+              />
+            ) : (
+              <div className="p-5 sm:p-8 border-2 border-dashed border-slate-200 rounded-xl text-center bg-slate-50">
+                <p className="text-slate-500 font-medium">No slots available for this date.</p>
+                <p className="text-slate-400 text-sm mt-1">Please try selecting another day.</p>
+              </div>
+            )}
+          </div>
           <div className="pt-4 mt-4 border-t border-slate-100">
             <p className="text-xs font-semibold text-slate-500 mb-1.5">Legend</p>
             <SlotLegend />
@@ -198,7 +220,7 @@ export function BookingFormWidget() {
           <Button 
             type="submit" 
             className="w-full sm:w-auto text-base px-6 sm:px-8 py-4 sm:py-6 rounded-xl min-h-12"
-            disabled={!selectedSlotIso || isSubmitting}
+            disabled={!selectedSlotIso || isSubmitting || isSlotsLoading}
           >
             {isSubmitting ? 'Securing your slot...' : 'Confirm Booking'}
           </Button>

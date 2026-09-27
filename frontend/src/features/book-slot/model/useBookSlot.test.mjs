@@ -94,8 +94,8 @@ test('booking form refreshes availability and clears the slot after a conflict',
   assert.match(widget, /refetchSlots\(\)/);
   assert.match(widget, /setSelectedSlotIso\(null\)/);
   assert.match(widget, /bookingErrorDisplayMessage/);
-  assert.match(widget, /disabled=\{!selectedSlotIso \|\| isSubmitting\}/);
-  assert.match(widget, /if \(!selectedSlotIso \|\| isSubmitting\) return/);
+  assert.match(widget, /disabled=\{!selectedSlotIso \|\| isSubmitting \|\| isSlotsLoading\}/);
+  assert.match(widget, /if \(!selectedSlotIso \|\| isSubmitting \|\| isSlotsLoading\) return/);
   assert.doesNotMatch(widget, /reset\(\)/);
   assert.match(hook, /SLOT_NO_LONGER_AVAILABLE_MESSAGE/);
   assert.doesNotMatch(hook, /just booked by another parent/);

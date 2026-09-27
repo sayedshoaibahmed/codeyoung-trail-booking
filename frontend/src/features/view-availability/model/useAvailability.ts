@@ -1,40 +1,55 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { viewAvailabilityApi } from '../api';
 import type { AvailableSlot } from '../../../entities/slot/model/types';
+
+export function isAvailabilityAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError';
+}
+
+export function isCurrentAvailabilityRequest(
+  requestId: number,
+  latestRequestId: number,
+): boolean {
+  return requestId === latestRequestId;
+}
 
 export function useAvailability(date: string, timezone: string) {
   const [slots, setSlots] = useState<AvailableSlot[]>([]);
   const [isLoading, setIsLoading] = useState(Boolean(date && timezone));
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
+  const latestRequestId = useRef(0);
 
   useEffect(() => {
     if (!date || !timezone) return;
 
-    let mounted = true;
+    const controller = new AbortController();
+    const requestId = latestRequestId.current + 1;
+    latestRequestId.current = requestId;
+
     setIsLoading(true);
     setError(null);
 
-    viewAvailabilityApi.getSlots(date, timezone)
-      .then(res => {
-        if (mounted) {
-          // Sort slots by start time
-          const sorted = res.slots.sort((a, b) => new Date(a.startUtc).getTime() - new Date(b.startUtc).getTime());
-          setSlots(sorted);
-        }
+    viewAvailabilityApi.getSlots(date, timezone, { signal: controller.signal })
+      .then((res) => {
+        if (!isCurrentAvailabilityRequest(requestId, latestRequestId.current)) return;
+        const sorted = res.slots.sort((a, b) => new Date(a.startUtc).getTime() - new Date(b.startUtc).getTime());
+        setSlots(sorted);
       })
-      .catch(err => {
-        if (mounted) {
-          // A failed request is not an empty calendar. Drop any previous slots.
-          setSlots([]);
-          setError(err.message || 'Failed to fetch availability.');
-        }
+      .catch((err: unknown) => {
+        if (!isCurrentAvailabilityRequest(requestId, latestRequestId.current)) return;
+        if (isAvailabilityAbortError(err) || controller.signal.aborted) return;
+        setSlots([]);
+        setError(err instanceof Error ? err.message : 'Failed to fetch availability.');
       })
       .finally(() => {
-        if (mounted) setIsLoading(false);
+        if (!isCurrentAvailabilityRequest(requestId, latestRequestId.current)) return;
+        setIsLoading(false);
       });
 
-    return () => { mounted = false; };
+    return () => {
+      controller.abort();
+    };
   }, [date, timezone, tick]);
 
   const refetch = useCallback(() => setTick((t) => t + 1), []);
