@@ -24,7 +24,7 @@ interface UseBookingResult {
 
 export function useBooking(id: string | undefined): UseBookingResult {
   const [booking, setBooking] = useState<Booking | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(Boolean(id));
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
 

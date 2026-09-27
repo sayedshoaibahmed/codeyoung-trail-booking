@@ -33,7 +33,7 @@ export async function fetchApi<T>(endpoint: string, options?: RequestInit): Prom
     throw new ApiError(
       response.status,
       errorData.code || 'UNKNOWN_ERROR',
-      errorData.message || 'An error occurred while fetching data.',
+      errorData.message || `Request failed (HTTP ${response.status}).`,
       errorData.errors,
       errorData.alternateSlots
     );

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -24,6 +24,15 @@ export function BookingFormWidget() {
   
   // Use browser timezone guess
   const timezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
+  const todayLocal = useMemo(
+    () => new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date()),
+    [timezone],
+  );
 
   const { register, handleSubmit, formState: { errors }, watch } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -31,11 +40,16 @@ export function BookingFormWidget() {
       parentName: '',
       parentEmail: '',
       childName: '',
-      requestedDate: new Date().toISOString().split('T')[0],
+      requestedDate: todayLocal,
     }
   });
 
   const requestedDate = watch('requestedDate');
+
+  // A slot chosen for one date must not stay selected after the date changes.
+  useEffect(() => {
+    setSelectedSlotIso(null);
+  }, [requestedDate]);
 
   const { slots, isLoading: isSlotsLoading, error: slotsError } = useAvailability(requestedDate, timezone);
   const { book, isSubmitting, error: bookingError } = useBookSlot();
@@ -76,18 +90,18 @@ export function BookingFormWidget() {
   };
 
   return (
-    <div className="w-full">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8">
-        <h2 className="text-2xl sm:text-3xl font-extrabold text-teal-950">Book a Trial Class</h2>
-        <div className="mt-2 sm:mt-0 text-sm font-medium text-slate-500 bg-slate-50 px-3 py-1.5 rounded-full inline-flex items-center border border-slate-100">
-          <svg className="w-4 h-4 mr-1.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-          {timezone}
+    <div className="w-full min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8">
+        <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-teal-950">Book a Trial Class</h2>
+        <div className="max-w-full text-sm font-medium text-slate-500 bg-slate-50 px-3 py-1.5 rounded-full inline-flex items-center border border-slate-100 min-w-0">
+          <svg className="w-4 h-4 mr-1.5 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          <span className="truncate">{timezone}</span>
         </div>
       </div>
 
       {bookingError && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex flex-col items-start shadow-sm">
-          <p className="text-sm text-red-800 font-semibold flex items-center">
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex flex-col items-start shadow-sm max-w-full">
+          <p className="text-sm text-red-800 font-semibold break-words">
             <span className="mr-2">⚠️</span> {bookingError.message}
           </p>
           {bookingError.alternateSlots && bookingError.alternateSlots.length > 0 && (
@@ -127,18 +141,19 @@ export function BookingFormWidget() {
         </div>
 
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-teal-950">Select a Time Slot</h3>
-            <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded">Duration: 1 Hour</span>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <h3 className="text-base sm:text-lg font-bold text-teal-950">Select a Time Slot</h3>
+            <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded shrink-0">Duration: 1 Hour</span>
           </div>
           
-          {slotsError && <p className="text-sm text-red-600 font-medium p-3 bg-red-50 rounded-lg">{slotsError}</p>}
           {isSlotsLoading ? (
-            <div className="animate-pulse flex gap-3 flex-wrap">
-              {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-14 w-32 bg-slate-100 rounded-lg"></div>)}
+            <div className="animate-pulse grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-12 w-full bg-slate-100 rounded-lg"></div>)}
             </div>
+          ) : slotsError ? (
+            <p className="text-sm text-red-600 font-medium p-3 bg-red-50 rounded-lg break-words">{slotsError}</p>
           ) : slots.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
               {slots.map(slot => (
                 <SlotCard
                   key={slot.startUtc}
@@ -150,7 +165,7 @@ export function BookingFormWidget() {
               ))}
             </div>
           ) : (
-            <div className="p-8 border-2 border-dashed border-slate-200 rounded-xl text-center bg-slate-50">
+            <div className="p-5 sm:p-8 border-2 border-dashed border-slate-200 rounded-xl text-center bg-slate-50">
               <p className="text-slate-500 font-medium">No slots available for this date.</p>
               <p className="text-slate-400 text-sm mt-1">Please try selecting another day.</p>
             </div>
@@ -160,7 +175,7 @@ export function BookingFormWidget() {
         <div className="pt-6 border-t border-slate-100">
           <Button 
             type="submit" 
-            className="w-full sm:w-auto text-base px-8 py-6 rounded-xl"
+            className="w-full sm:w-auto text-base px-6 sm:px-8 py-4 sm:py-6 rounded-xl min-h-12"
             disabled={!selectedSlotIso || isSubmitting}
           >
             {isSubmitting ? 'Securing your slot...' : 'Confirm Booking'}

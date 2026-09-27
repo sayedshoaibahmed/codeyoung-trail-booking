@@ -38,8 +38,8 @@ export function CancelBookingDialog({ bookingId, onSuccess, onClose }: CancelBoo
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 border border-slate-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5 sm:p-8 border border-slate-100 my-auto max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <h3 className="text-xl font-extrabold text-teal-950 mb-2">Cancel Class</h3>
         <p className="text-sm text-slate-500 mb-6 font-medium leading-relaxed">
           Are you sure you want to cancel this class? This action cannot be undone. Please enter your cancellation token to confirm.

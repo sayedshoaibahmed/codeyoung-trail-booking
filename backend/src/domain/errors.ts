@@ -59,6 +59,18 @@ export class SlotNotAvailableError extends Error {
   }
 }
 
+/** The 1-hour class does not lie entirely inside Shift 1 or Shift 2. */
+export class SlotOutsideShiftError extends Error {
+  readonly code = 'SLOT_OUTSIDE_SHIFT';
+  constructor() {
+    super(
+      'The full 1-hour class must fall inside a mentor shift ' +
+      '(Shift 1: 09:00–21:00 IST, or Shift 2: 21:00–09:00 IST).',
+    );
+    this.name = 'SlotOutsideShiftError';
+  }
+}
+
 /** A lightweight slot descriptor used in error responses when the primary slot is full. */
 export interface AlternateSlot {
   startUtc: string;

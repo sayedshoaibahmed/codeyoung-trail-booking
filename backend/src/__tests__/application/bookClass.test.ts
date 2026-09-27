@@ -30,6 +30,7 @@ import {
   LeadTimeViolationError,
   IdempotencyConflictError,
   SlotNotAvailableError,
+  SlotOutsideShiftError,
 } from '../../domain/errors';
 
 // ── Fixed clock ───────────────────────────────────────────────────────────────
@@ -442,5 +443,58 @@ describe('BookClassUseCase — email failure', () => {
     const uc = new BookClassUseCase(uow, idemStore, buildTzService(), failingEmail, mentorRepo);
     // Should NOT throw despite the email failure
     await expect(uc.execute(BASE_DTO)).resolves.toBeDefined();
+  });
+});
+
+describe('BookClassUseCase — shift containment', () => {
+  it('rejects a class that starts in Shift 1 but ends after 21:00 IST', async () => {
+    const mentorRepo = {
+      findEligibleMentors: vi.fn().mockResolvedValue([makeMentor('mentor-a')]),
+      findById: vi.fn(),
+      findAll: vi.fn(),
+    } as unknown as MentorRepository;
+    const uc = new BookClassUseCase(
+      buildUoW(mentorRepo, buildBookingRepo(makeBooking('b1', 'mentor-a')), buildIdempotencyStore()),
+      buildIdempotencyStore(),
+      buildTzService(),
+      buildEmailService(),
+      mentorRepo,
+    );
+
+    // 20:30–21:30 IST crosses the Shift 1 boundary.
+    await expect(
+      uc.execute({ ...BASE_DTO, requestedStartIso: '2024-11-04T20:30:00', idempotencyKey: 'outside-shift' }),
+    ).rejects.toThrow(SlotOutsideShiftError);
+    expect(mentorRepo.findEligibleMentors).not.toHaveBeenCalled();
+  });
+});
+
+describe('BookClassUseCase — idempotency race with a different payload', () => {
+  it('maps a P2002 on an existing key with a different hash to IdempotencyConflictError', async () => {
+    const mentorRepo = {
+      findEligibleMentors: vi.fn().mockResolvedValue([makeMentor('mentor-a')]),
+      findById: vi.fn(),
+      findAll: vi.fn(),
+    } as unknown as MentorRepository;
+    const stored = makeIdempotencyRecord(
+      'idempotency-key-1',
+      'different-hash',
+      makeResult('booking-existing', 'Mentor mentor-a'),
+    );
+    const idemStore = buildIdempotencyStore(null);
+    // First lookup (pre-check) misses; the insert then collides and the retry finds the other payload.
+    vi.mocked(idemStore.findByKey)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(stored);
+
+    const uc = new BookClassUseCase(
+      buildThrowingUoW('P2002'),
+      idemStore,
+      buildTzService(),
+      buildEmailService(),
+      mentorRepo,
+    );
+
+    await expect(uc.execute(BASE_DTO)).rejects.toThrow(IdempotencyConflictError);
   });
 });

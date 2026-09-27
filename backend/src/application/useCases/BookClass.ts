@@ -34,13 +34,14 @@ import { MentorShiftType } from '../../domain/entities/Mentor';
 import {
   parseHHmm,
   isExactDuration,
+  isSlotWithinShift,
   meetsLeadTime,
 } from '../../domain/services/shiftValidation';
 import {
-  InvalidTimezoneError,
   LeadTimeViolationError,
   IdempotencyConflictError,
   SlotNotAvailableError,
+  SlotOutsideShiftError,
   type AlternateSlot,
 } from '../../domain/errors';
 
@@ -80,6 +81,17 @@ function determineShift(istStartMinutes: number): MentorShiftType {
   return istStartMinutes >= SHIFT_1_START_MIN && istStartMinutes < SHIFT_1_END_MIN
     ? MentorShiftType.SHIFT_1
     : MentorShiftType.SHIFT_2;
+}
+
+/**
+ * The whole 1-hour class must sit inside the shift that owns its start time.
+ * A 20:30 IST start is inside the Shift 1 clock range but ends at 21:30, so it is rejected.
+ */
+function slotFitsShift(istStartMinutes: number, shift: MentorShiftType): boolean {
+  if (shift === MentorShiftType.SHIFT_1) {
+    return isSlotWithinShift(istStartMinutes, 60, SHIFT_1_START_MIN, SHIFT_1_END_MIN, false);
+  }
+  return isSlotWithinShift(istStartMinutes, 60, SHIFT_1_END_MIN, SHIFT_1_START_MIN, true);
 }
 
 // ── DTOs ─────────────────────────────────────────────────────────────────────
@@ -146,6 +158,9 @@ export class BookClassUseCase {
     const { time: istTime, date: mentorLocalDate } = this.tzService.toLocal(startUtc, MENTOR_TIMEZONE);
     const istMinutes = parseHHmm(istTime);
     const shift = determineShift(istMinutes);
+    if (!slotFitsShift(istMinutes, shift)) {
+      throw new SlotOutsideShiftError();
+    }
 
     // ── 7. Payload hash for idempotency ──────────────────────────────────────
     const payloadHash = hashPayload({
@@ -244,8 +259,12 @@ export class BookClassUseCase {
         // may have just succeeded — try to return its result.
         if (code === 'P2002') {
           const raceRecord = await this.idempotencyStore.findByKey(dto.idempotencyKey);
-          if (raceRecord?.payloadHash === payloadHash) {
-            return JSON.parse(raceRecord.responseJson) as BookClassResult;
+          if (raceRecord) {
+            if (raceRecord.payloadHash === payloadHash) {
+              return JSON.parse(raceRecord.responseJson) as BookClassResult;
+            }
+            // Same key was committed with a different body. This is not a full slot.
+            throw new IdempotencyConflictError(dto.idempotencyKey);
           }
         }
         // Otherwise it's a slot conflict — gather alternates and surface
@@ -279,26 +298,31 @@ export class BookClassUseCase {
   // ── Private helpers ────────────────────────────────────────────────────────
 
   /**
-   * Returns up to 3 alternative available 1-hour slots near the requested time.
-   * Queries the same shift, checking the next 12 IST hour-aligned slots.
+   * Returns up to 3 alternative available 1-hour slots in the next 12 hours.
+   * Each candidate is classified into its own shift and rejected when the
+   * full hour would cross a shift boundary.
    * Does NOT use a transaction — read-only, best-effort.
    */
   private async fetchAlternates(
-    shift: MentorShiftType,
+    _shift: MentorShiftType,
     requestedStart: Date,
-    requestedEnd: Date,
-    mentorLocalDate: string,
+    _requestedEnd: Date,
+    _mentorLocalDate: string,
   ): Promise<AlternateSlot[]> {
     const alternates: AlternateSlot[] = [];
-    // Try the next 12 hour-aligned slots in the same shift (skip the requested one)
+    // Walk the next 12 hour offsets (skip the requested instant).
     for (let h = 1; h <= 12 && alternates.length < 3; h++) {
       const candidateStart = new Date(requestedStart.getTime() + h * 60 * 60_000);
       const candidateEnd   = new Date(candidateStart.getTime() + SLOT_DURATION_MS);
-      const { date: cDate } = this.tzService.toLocal(candidateStart, MENTOR_TIMEZONE);
+      const { time: cTime, date: cDate } = this.tzService.toLocal(candidateStart, MENTOR_TIMEZONE);
+      const cMinutes = parseHHmm(cTime);
+      const candidateShift = determineShift(cMinutes);
+      // Skip hours whose full class would leave the shift (for example 20:30 → 21:30).
+      if (!slotFitsShift(cMinutes, candidateShift)) continue;
 
       try {
         const eligible = await this.mentorRepo.findEligibleMentors({
-          shift,
+          shift:           candidateShift,
           slotStartUtc:    candidateStart,
           slotEndUtc:      candidateEnd,
           mentorLocalDate: cDate,

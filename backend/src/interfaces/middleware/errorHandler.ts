@@ -22,6 +22,7 @@ import {
   BookingAlreadyCancelledError,
   CancellationAfterStartError,
   IdempotencyConflictError,
+  SlotOutsideShiftError,
 } from '../../domain/errors';
 
 // ── Error → HTTP status mapping ───────────────────────────────────────────────
@@ -34,7 +35,8 @@ function toHttpStatus(err: Error): number {
     err instanceof DstAmbiguousTimeError  ||
     err instanceof DstNonexistentTimeError ||
     err instanceof LeadTimeViolationError  ||
-    err instanceof IdempotencyConflictError
+    err instanceof IdempotencyConflictError ||
+    err instanceof SlotOutsideShiftError
   ) return 400;
 
   // 401 — authentication / credential failure

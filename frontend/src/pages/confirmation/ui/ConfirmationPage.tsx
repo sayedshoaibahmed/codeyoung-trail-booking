@@ -38,17 +38,17 @@ export function ConfirmationPage() {
   // ── Loading / error guards ────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500 animate-pulse">Loading booking details…</p>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <p className="text-gray-500 animate-pulse text-center">Loading booking details…</p>
       </div>
     );
   }
 
   if (error || !booking) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-500 mb-4">{error ?? 'Booking not found.'}</p>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <p className="text-red-500 mb-4 break-words">{error ?? 'Booking not found.'}</p>
           <Link to="/" className="text-blue-600 hover:underline text-sm">
             ← Back to booking
           </Link>
@@ -59,8 +59,8 @@ export function ConfirmationPage() {
 
   // ── Page ──────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4 font-sans text-slate-900">
-      <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-xl border border-slate-100 p-8 sm:p-12">
+    <div className="min-h-screen bg-slate-50 py-8 sm:py-12 px-4 font-sans text-slate-900 overflow-x-hidden">
+      <div className="max-w-3xl mx-auto bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-slate-100 p-4 sm:p-8 lg:p-12 min-w-0">
 
         {/* ── Status header ── */}
         <div className="text-center mb-10">
@@ -84,7 +84,7 @@ export function ConfirmationPage() {
           <h1 className="text-3xl sm:text-4xl font-extrabold text-teal-950 tracking-tight">
             {booking.status === 'CONFIRMED' ? 'Booking Confirmed!' : 'Booking Cancelled'}
           </h1>
-          <p className="text-slate-500 mt-3 text-sm font-medium">Ref: {booking.id}</p>
+          <p className="text-slate-500 mt-3 text-sm font-medium break-all">Ref: {booking.id}</p>
         </div>
 
         {/* ── Booking detail card (entity component) ── */}
@@ -113,18 +113,18 @@ export function ConfirmationPage() {
             <>
               <Link
                 to={`/class/${booking.id}`}
-                className="inline-flex items-center justify-center whitespace-nowrap rounded-xl text-base font-bold transition-colors bg-amber-500 text-slate-900 hover:bg-amber-600 shadow-sm h-14 px-8"
+                className="inline-flex items-center justify-center w-full sm:w-auto whitespace-nowrap rounded-xl text-base font-bold transition-colors bg-amber-500 text-slate-900 hover:bg-amber-600 shadow-sm h-14 px-8"
               >
                 Join Class Room
               </Link>
-              <Button variant="outline" size="lg" className="h-14 rounded-xl px-8" onClick={() => setShowCancelDialog(true)}>
+              <Button variant="outline" size="lg" className="h-14 rounded-xl px-8 w-full sm:w-auto" onClick={() => setShowCancelDialog(true)}>
                 Cancel Booking
               </Button>
             </>
           ) : (
             <Link
               to="/"
-              className="inline-flex items-center justify-center whitespace-nowrap rounded-xl text-base font-bold transition-colors bg-amber-500 text-slate-900 hover:bg-amber-600 shadow-sm h-14 px-8"
+              className="inline-flex items-center justify-center w-full sm:w-auto whitespace-nowrap rounded-xl text-base font-bold transition-colors bg-amber-500 text-slate-900 hover:bg-amber-600 shadow-sm h-14 px-8"
             >
               Book a New Class
             </Link>

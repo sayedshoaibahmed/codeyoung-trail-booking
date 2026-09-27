@@ -16,7 +16,7 @@ interface MentorBadgeProps {
 
 export function MentorBadge({ mentor, showTimezone = false }: MentorBadgeProps) {
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-3 min-w-0">
       {/* Avatar placeholder using mentor initials */}
       <div className="flex-shrink-0 w-10 h-10 rounded-full bg-teal-100 border border-teal-200 flex items-center justify-center text-teal-800 text-sm font-bold shadow-sm">
         {mentor.name
@@ -26,10 +26,10 @@ export function MentorBadge({ mentor, showTimezone = false }: MentorBadgeProps) 
           .slice(0, 2)
           .toUpperCase()}
       </div>
-      <div>
-        <p className="text-sm font-bold text-slate-900">{mentor.name}</p>
+      <div className="min-w-0">
+        <p className="text-sm font-bold text-slate-900 break-words">{mentor.name}</p>
         {showTimezone && (
-          <p className="text-xs font-medium text-slate-500">{mentor.timezone}</p>
+          <p className="text-xs font-medium text-slate-500 break-all">{mentor.timezone}</p>
         )}
       </div>
     </div>

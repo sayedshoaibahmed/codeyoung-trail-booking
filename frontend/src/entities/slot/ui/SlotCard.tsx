@@ -19,7 +19,7 @@ export function SlotCard({ slot, isSelected, onClick, timezone }: SlotCardProps)
       type="button"
       onClick={onClick}
       className={`
-        px-4 py-3 rounded-xl border-2 text-sm font-bold transition-all
+        w-full min-w-0 min-h-12 px-2 sm:px-4 py-3 rounded-xl border-2 text-sm font-bold transition-all
         ${isSelected 
           ? 'bg-amber-50 text-amber-900 border-amber-500 shadow-sm' 
           : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-amber-400 hover:text-amber-700'

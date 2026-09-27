@@ -4,7 +4,7 @@ import type { AvailableSlot } from '../../../entities/slot/model/types';
 
 export function useAvailability(date: string, timezone: string) {
   const [slots, setSlots] = useState<AvailableSlot[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(Boolean(date && timezone));
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -24,6 +24,8 @@ export function useAvailability(date: string, timezone: string) {
       })
       .catch(err => {
         if (mounted) {
+          // A failed request is not an empty calendar. Drop any previous slots.
+          setSlots([]);
           setError(err.message || 'Failed to fetch availability.');
         }
       })

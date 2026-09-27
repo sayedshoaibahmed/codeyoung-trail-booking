@@ -29,10 +29,10 @@ export function BookingDetailCard({ booking }: BookingDetailCardProps) {
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-      <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 font-bold text-teal-950 text-lg flex items-center justify-between">
-        Class Details
+      <div className="bg-slate-50 px-4 sm:px-6 py-4 border-b border-slate-200 font-bold text-teal-950 text-base sm:text-lg flex items-center justify-between gap-3">
+        <span className="min-w-0">Class Details</span>
         <span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+            className={`inline-flex shrink-0 items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
               booking.status === 'CONFIRMED'
                 ? 'bg-green-100 text-green-800'
                 : 'bg-red-100 text-red-800'
@@ -41,23 +41,23 @@ export function BookingDetailCard({ booking }: BookingDetailCardProps) {
             {booking.status}
           </span>
       </div>
-      <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
+      <div className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm min-w-0">
         {/* Parent */}
         <div>
           <p className="text-slate-500 font-medium mb-1 uppercase tracking-wide text-xs">Parent</p>
-          <p className="font-semibold text-slate-900 text-base">{booking.parentName}</p>
+          <p className="font-semibold text-slate-900 text-base break-words">{booking.parentName}</p>
         </div>
 
         {/* Child */}
         <div>
           <p className="text-slate-500 font-medium mb-1 uppercase tracking-wide text-xs">Student</p>
-          <p className="font-semibold text-slate-900 text-base">{booking.childName}</p>
+          <p className="font-semibold text-slate-900 text-base break-words">{booking.childName}</p>
         </div>
 
         {/* Class time in parent timezone */}
         <div className="sm:col-span-2 bg-amber-50 rounded-xl p-4 border border-amber-100">
-          <p className="text-amber-800 font-medium mb-1 uppercase tracking-wide text-xs">Class Time ({booking.parentTimezone})</p>
-          <p className="font-bold text-amber-900 text-lg">
+          <p className="text-amber-800 font-medium mb-1 uppercase tracking-wide text-xs break-words">Class Time ({booking.parentTimezone})</p>
+          <p className="font-bold text-amber-900 text-base sm:text-lg break-words">
             {formatInTz(booking.startTimeUtc, booking.parentTimezone)}
           </p>
           <p className="text-amber-700 text-xs mt-1 font-medium">Duration: 1 Hour</p>
