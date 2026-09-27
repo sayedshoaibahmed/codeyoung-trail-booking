@@ -50,6 +50,7 @@ function buildMentorRepo(): MentorRepository {
     }),
     findAll: vi.fn(),
     findEligibleMentors: vi.fn(),
+    loadAvailabilitySnapshot: vi.fn().mockResolvedValue({ mentors: [], confirmedBookings: [] }),
   };
 }
 

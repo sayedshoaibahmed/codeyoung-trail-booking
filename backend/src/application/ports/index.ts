@@ -1,4 +1,11 @@
-export type { MentorRepository, FindEligibleMentorsOptions, MentorWithDayCount } from './MentorRepository';
+export type {
+  MentorRepository,
+  FindEligibleMentorsOptions,
+  MentorWithDayCount,
+  ConfirmedBookingInterval,
+  MentorAvailabilitySnapshot,
+  LoadAvailabilitySnapshotOptions,
+} from './MentorRepository';
 export type { BookingRepository, CreateBookingData, ListBookingsFilter } from './BookingRepository';
 export type { IdempotencyStore, IdempotencyRecord, CreateIdempotencyData } from './IdempotencyStore';
 export type { TimezoneService, LocalTimeInfo } from './TimezoneService';

@@ -10,6 +10,8 @@ import type {
   MentorRepository,
   FindEligibleMentorsOptions,
   MentorWithDayCount,
+  LoadAvailabilitySnapshotOptions,
+  MentorAvailabilitySnapshot,
 } from '../../application/ports';
 import type { Mentor } from '../../domain';
 import { MentorShiftType } from '../../domain';
@@ -81,6 +83,62 @@ export class PrismaMentorRepository implements MentorRepository {
     });
 
     return eligible;
+  }
+
+  async loadAvailabilitySnapshot(
+    options: LoadAvailabilitySnapshotOptions,
+  ): Promise<MentorAvailabilitySnapshot> {
+    const { mentorLocalDates, windowStartUtc, windowEndUtc } = options;
+
+    const bookingWhere =
+      mentorLocalDates.length === 0
+        ? {
+            status: PrismaBookingStatus.CONFIRMED,
+            startTimeUtc: { lt: windowEndUtc },
+            endTimeUtc: { gt: windowStartUtc },
+          }
+        : {
+            status: PrismaBookingStatus.CONFIRMED,
+            OR: [
+              { mentorLocalDate: { in: mentorLocalDates } },
+              {
+                startTimeUtc: { lt: windowEndUtc },
+                endTimeUtc: { gt: windowStartUtc },
+              },
+            ],
+          };
+
+    const [mentors, bookings] = await Promise.all([
+      this.db.mentor.findMany({ where: { active: true } }),
+      this.db.booking.findMany({
+        where: bookingWhere,
+        select: {
+          id: true,
+          mentorId: true,
+          startTimeUtc: true,
+          endTimeUtc: true,
+          mentorLocalDate: true,
+        },
+      }),
+    ]);
+
+    const seen = new Set<string>();
+    const confirmedBookings = [];
+    for (const booking of bookings) {
+      if (seen.has(booking.id)) continue;
+      seen.add(booking.id);
+      confirmedBookings.push({
+        mentorId: booking.mentorId,
+        startTimeUtc: booking.startTimeUtc,
+        endTimeUtc: booking.endTimeUtc,
+        mentorLocalDate: booking.mentorLocalDate,
+      });
+    }
+
+    return {
+      mentors: mentors.map(toDomainMentor),
+      confirmedBookings,
+    };
   }
 
   async findById(id: string): Promise<Mentor | null> {

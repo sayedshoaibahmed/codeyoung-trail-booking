@@ -99,6 +99,7 @@ function buildMentorRepo(): MentorRepository {
     findById:            vi.fn().mockResolvedValue({ id: 'mentor-1', name: 'Test Mentor', email: 'm@t.com', timezone: 'Asia/Kolkata', shift: MentorShiftType.SHIFT_1, active: true, createdAt: new Date(), updatedAt: new Date() }),
     findAll:             vi.fn().mockResolvedValue([]),
     findEligibleMentors: vi.fn().mockResolvedValue([]),
+    loadAvailabilitySnapshot: vi.fn().mockResolvedValue({ mentors: [], confirmedBookings: [] }),
   };
 }
 

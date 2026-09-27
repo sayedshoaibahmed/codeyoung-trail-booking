@@ -39,6 +39,28 @@ export interface MentorWithDayCount {
   dayCount: number;
 }
 
+/** CONFIRMED booking interval used for availability (overlap + daily cap). */
+export interface ConfirmedBookingInterval {
+  mentorId: string;
+  startTimeUtc: Date;
+  endTimeUtc: Date;
+  mentorLocalDate: string;
+}
+
+export interface MentorAvailabilitySnapshot {
+  mentors: Mentor[];
+  confirmedBookings: ConfirmedBookingInterval[];
+}
+
+export interface LoadAvailabilitySnapshotOptions {
+  /** Distinct mentor-local (IST) dates that appear on the requested parent day. */
+  mentorLocalDates: string[];
+  /** Inclusive UTC start of the earliest in-day class interval. */
+  windowStartUtc: Date;
+  /** Exclusive-style UTC end of the latest in-day class interval. */
+  windowEndUtc: Date;
+}
+
 export interface MentorRepository {
   /**
    * Returns all active mentors assigned to the given shift who:
@@ -55,6 +77,15 @@ export interface MentorRepository {
     options: FindEligibleMentorsOptions,
     tx?: unknown,
   ): Promise<MentorWithDayCount[]>;
+
+  /**
+   * Loads active mentors plus CONFIRMED bookings needed for one availability
+   * day. Used only by GetAvailability — booking still uses findEligibleMentors
+   * inside the existing transaction.
+   */
+  loadAvailabilitySnapshot(
+    options: LoadAvailabilitySnapshotOptions,
+  ): Promise<MentorAvailabilitySnapshot>;
 
   /** Fetch a single mentor by primary key. Returns null if not found. */
   findById(id: string): Promise<Mentor | null>;

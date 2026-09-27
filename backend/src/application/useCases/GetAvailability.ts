@@ -21,13 +21,17 @@
  *     dates that overlap the parent's day (including the previous IST date so
  *     Shift 2 overnight hours that start in this parent day are included).
  *  4. Keep slots whose start is within the parent's day.
- *  5. Classify each slot; query MentorRepository only when lead time is met.
+ *  5. Load mentors + CONFIRMED bookings once, then classify each slot in memory.
  */
-import type { MentorRepository } from '../ports/MentorRepository';
+import type { MentorAvailabilitySnapshot, MentorRepository } from '../ports/MentorRepository';
 import type { TimezoneService } from '../ports/TimezoneService';
 import { MentorShiftType } from '../../domain/entities/Mentor';
 import { InvalidDateFormatError } from '../../domain/errors';
 import { meetsLeadTime } from '../../domain/services/shiftValidation';
+import {
+  eligibleMentorsFromSnapshot,
+  indexAvailabilitySnapshot,
+} from '../services/eligibleMentorsFromSnapshot';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -200,10 +204,32 @@ export class GetAvailabilityUseCase {
       (s) => s.startUtc >= dayStartUtc && s.startUtc < dayEndUtc,
     );
 
-    // 7. Classify each in-day slot. Lead-time failures are blocked without a
-    //    mentor query. Capacity/overlap failures are `full`, not omitted.
+    // 7. Classify each in-day slot. Lead-time failures are blocked without
+    //    eligibility work. Capacity/overlap failures are `full`, not omitted.
     inDay.sort((a, b) => a.startUtc.getTime() - b.startUtc.getTime());
 
+    const needsEligibility = inDay.some((slot) =>
+      meetsLeadTime(slot.startUtc, now, LEAD_TIME_HOURS * 60),
+    );
+
+    let snapshot: MentorAvailabilitySnapshot = { mentors: [], confirmedBookings: [] };
+    if (needsEligibility && inDay.length > 0) {
+      let windowStartUtc = inDay[0].startUtc;
+      let windowEndUtc = inDay[0].endUtc;
+      const mentorLocalDates = new Set<string>();
+      for (const slot of inDay) {
+        if (slot.startUtc < windowStartUtc) windowStartUtc = slot.startUtc;
+        if (slot.endUtc > windowEndUtc) windowEndUtc = slot.endUtc;
+        mentorLocalDates.add(slot.mentorLocalDate);
+      }
+      snapshot = await this.mentorRepo.loadAvailabilitySnapshot({
+        mentorLocalDates: [...mentorLocalDates],
+        windowStartUtc,
+        windowEndUtc,
+      });
+    }
+
+    const indexed = indexAvailabilitySnapshot(snapshot);
     const slots: AvailabilitySlot[] = [];
 
     for (const slot of inDay) {
@@ -221,7 +247,7 @@ export class GetAvailabilityUseCase {
         continue;
       }
 
-      const eligible = await this.mentorRepo.findEligibleMentors({
+      const eligible = eligibleMentorsFromSnapshot(indexed, {
         shift: slot.shift,
         slotStartUtc: slot.startUtc,
         slotEndUtc:   slot.endUtc,
