@@ -12,8 +12,24 @@ import type { PrismaClient } from '@prisma/client';
 import { BookingStatus as PrismaBookingStatus } from '@prisma/client';
 import type { BookingRepository, CreateBookingData, ListBookingsFilter } from '../../application/ports';
 import type { Booking } from '../../domain';
-import { BookingStatus } from '../../domain';
+import { BookingStatus, ConfirmedSlotConflictError } from '../../domain';
 import { toDomainBooking } from './mappers/bookingMapper';
+
+/**
+ * P2002 on the CONFIRMED (mentorId, startTimeUtc) partial unique index.
+ * Idempotency and access-token collisions are not slot conflicts.
+ */
+export function isConfirmedSlotUniqueViolation(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  if ((err as { code?: string }).code !== 'P2002') return false;
+  const target = (err as { meta?: { target?: unknown } }).meta?.target;
+  const text = Array.isArray(target) ? target.join(' ') : String(target ?? '');
+  const message = err instanceof Error ? err.message : '';
+  const haystack = `${text} ${message}`;
+  if (haystack.includes('idempotencyKey') || haystack.includes('accessTokenHash')) return false;
+  return haystack.includes('bookings_mentor_slot_confirmed_unique')
+    || (haystack.includes('mentorId') && haystack.includes('startTimeUtc'));
+}
 
 function toPrismaStatus(s: BookingStatus): PrismaBookingStatus {
   return s === BookingStatus.CONFIRMED
@@ -25,6 +41,21 @@ export class PrismaBookingRepository implements BookingRepository {
   constructor(private readonly db: PrismaClient) {}
 
   async create(data: CreateBookingData): Promise<Booking> {
+    // A unique violation aborts the PostgreSQL transaction unless we roll
+    // back to a savepoint. That lets BookClass try the next eligible mentor.
+    await this.db.$executeRawUnsafe('SAVEPOINT booking_mentor_insert');
+    try {
+      const record = await this.insertBooking(data);
+      await this.db.$executeRawUnsafe('RELEASE SAVEPOINT booking_mentor_insert');
+      return record;
+    } catch (err) {
+      await this.db.$executeRawUnsafe('ROLLBACK TO SAVEPOINT booking_mentor_insert');
+      if (isConfirmedSlotUniqueViolation(err)) throw new ConfirmedSlotConflictError();
+      throw err;
+    }
+  }
+
+  private async insertBooking(data: CreateBookingData): Promise<Booking> {
     const record = await this.db.booking.create({
       data: {
         id:                   data.id,

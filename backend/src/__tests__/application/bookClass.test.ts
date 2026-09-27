@@ -31,6 +31,7 @@ import {
   IdempotencyConflictError,
   SlotNotAvailableError,
   SlotOutsideShiftError,
+  ConfirmedSlotConflictError,
 } from '../../domain/errors';
 
 // ── Fixed clock ───────────────────────────────────────────────────────────────
@@ -501,6 +502,47 @@ describe('BookClassUseCase — least-loaded mentor selection', () => {
     const createCall = (createSpy.mock.calls[0][0] as CreateBookingData);
     expect(createCall.mentorId).toBe('mentor-a');
     expect(result.mentorName).toBe('Mentor mentor-a');
+  });
+
+  it('assigns the next eligible mentor when the least-loaded mentor loses the slot', async () => {
+    const mentorA = makeMentor('mentor-a', 0);
+    const mentorB = makeMentor('mentor-b', 1);
+    const booking = makeBooking('booking-1', 'mentor-b');
+    const createSpy = vi.fn()
+      .mockRejectedValueOnce(new ConfirmedSlotConflictError())
+      .mockImplementation(async (data: CreateBookingData) => ({
+        ...booking,
+        id: data.id,
+        mentorId: data.mentorId,
+      }));
+    const mentorRepo = {
+      findEligibleMentors: vi.fn().mockResolvedValue([mentorA, mentorB]),
+      findById: vi.fn(),
+      findAll: vi.fn(),
+    } as unknown as MentorRepository;
+    const bookingRepo: BookingRepository = {
+      create: createSpy,
+      findById: vi.fn(),
+      findByAccessTokenHash: vi.fn(),
+      findByIdForUpdate: vi.fn(),
+      cancel: vi.fn(),
+      findAll: vi.fn(),
+    };
+    const idemStore = buildIdempotencyStore();
+    const uc = new BookClassUseCase(
+      buildUoW(mentorRepo, bookingRepo, idemStore),
+      idemStore,
+      buildTzService(),
+      buildEmailService(),
+      mentorRepo,
+    );
+
+    const result = await uc.execute({ ...BASE_DTO, idempotencyKey: 'next-mentor' });
+    expect(result.status).toBe('CONFIRMED');
+    expect(result.mentorName).toBe('Mentor mentor-b');
+    expect(createSpy).toHaveBeenCalledTimes(2);
+    expect((createSpy.mock.calls[0][0] as CreateBookingData).mentorId).toBe('mentor-a');
+    expect((createSpy.mock.calls[1][0] as CreateBookingData).mentorId).toBe('mentor-b');
   });
 });
 

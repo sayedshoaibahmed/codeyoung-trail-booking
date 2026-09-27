@@ -1,399 +1,193 @@
 ﻿# Technical Requirements Document (TRD)
 
-**Project**: CodeYoung Trial Class Booking System
-**Version**: 1.0
-**Status**: Draft
+**Project:** CodeYoung Trial Class Booking System
+**Status:** Describes the repository as implemented
+
+Architecture is **Clean Architecture (backend)** + **Feature-Sliced Design (frontend)**.
+This is not a “lightweight FSD” or “simple layered” sketch. Ports, use cases, and FSD import rules are real.
+
+There is **no** MentorHold model, hold API, Redis, Kafka, or booking worker.
 
 ---
 
-## 1. Technology Stack
+## 1. Technology stack
 
-| Layer              | Technology                                          |
-|--------------------|-----------------------------------------------------|
-| Frontend framework | React 18 + Vite 5 + TypeScript 5                    |
-| Frontend routing   | React Router v6                                     |
-| Frontend forms     | React Hook Form + Zod (client-side schema)          |
-| Frontend styling   | Tailwind CSS v3 + PostCSS + Autoprefixer            |
-| Backend runtime    | Node.js 20 LTS + Express + TypeScript               |
-| Validation         | Zod (shared-schema pattern; server-side enforced)   |
-| Timezone handling  | Luxon (all timezone arithmetic; no native Date math)|
-| ORM                | Prisma (type-safe queries, migrations)              |
-| Database           | PostgreSQL 16                                       |
-| Email              | Mock adapter (console/log); EmailPort interface exposed for future swap |
+| Layer | Technology |
+|-------|------------|
+| Frontend | React 18, Vite 5, TypeScript, Tailwind 3, React Router 6, RHF, Zod |
+| Backend | Node.js, Express 5, TypeScript, Zod, Prisma 5, Luxon, bcrypt, Resend |
+| Database | PostgreSQL (`timestamptz`) |
+| Tests | Vitest (backend); Node `--test` (frontend `.mjs`) |
 
 ---
 
-## 2. Backend Architecture: Clean Architecture
-
-### 2.1 Layer Definitions
+## 2. Backend — Clean Architecture
 
 ```
 backend/src/
-  domain/          Pure business entities and rules. Zero external dependencies.
-  application/     Use cases. Depends only on domain + ports (interfaces).
-  infrastructure/  Concrete implementations of ports (Prisma, Luxon, mock email).
-  interfaces/      Express routes, controllers, Zod request validation, error middleware.
-  config/          Environment loading (dotenv), app bootstrap.
-  index.ts         Entry point.
+  domain/           Entities, shift/lead rules, domain errors. No Prisma/Express/Luxon/Resend.
+  application/      Use cases, ports, snapshot eligibility, token hashing helpers.
+  infrastructure/   Prisma repos, UoW, LuxonTimezoneService, email, composition root.
+  interfaces/       Routes, Zod DTOs, CORS is in index.ts, errorHandler. No booking rules.
+  index.ts          Express bootstrap, CORS, mount /api.
 ```
 
-### 2.2 Dependency Inversion Rule
+**Dependency rule**
 
-> **Inner layers must never import from outer layers.**
+- `domain` depends on nothing internal.
+- `application` depends on `domain` and port types only (no Prisma, Express, Resend, Nodemailer).
+- `infrastructure` and `interfaces` depend inward on application/domain. They must not be imported by domain/application.
+- Binding: `infrastructure/index.ts` (composition root), imported by `src/index.ts`.
 
-```
-interfaces  -->  application  -->  domain
-                     |
-              infrastructure
-                  (injected at composition root in config/ or index.ts)
-```
+### 2.1 Domain
 
-- `domain` imports nothing from this project.
-- `application` imports `domain` types + **port interfaces** (defined in `application/ports/`).
-- `infrastructure` imports `application` ports and provides concrete classes.
-- `interfaces` imports `application` use cases (injected), never `infrastructure` directly.
-- Dependency injection is done manually at the composition root (no IoC container required at this scale).
+- `Booking` / `BookingStatus` (`CONFIRMED` \| `CANCELLED`), `Mentor`, `MentorShift` types, `shiftValidation` (duration, lead time, shift containment).
+- Domain errors (`SLOT_NOT_AVAILABLE`, DST errors, etc.).
 
-### 2.3 Ports (Application-Layer Interfaces)
+### 2.2 Application — use cases and ports
 
-| Port Interface       | Responsibility                                           | Concrete Adapter (infrastructure) |
-|----------------------|----------------------------------------------------------|------------------------------------|
-| `BookingRepository`  | Persist and query bookings (with locking)               | `PrismaBookingRepository`          |
-| `MentorRepository`   | Query mentors, load counts, find eligible mentors        | `PrismaMentorRepository`           |
-| `IdempotencyStore`   | Store and retrieve idempotency key results               | `PrismaIdempotencyStore`           |
-| `EmailPort`          | Send (or log) confirmation and cancellation emails       | `ConsoleEmailAdapter`              |
-| `MeetingLinkPort`    | Generate a dummy meeting URL for a booking               | `DummyMeetingLinkAdapter`          |
-| `ClockPort`          | Return the current UTC instant (injectable for testing) | `SystemClockAdapter`               |
+**Use cases:** `GetAvailability`, `GetNextAvailableDate`, `BookClass`, `CancelClass`, `GetBooking`, `GetBookingByAccess`, `GetAdminDashboard`.
 
-### 2.4 Use Cases (Application Layer)
+**Ports:** `MentorRepository` (`findEligibleMentors`, `loadAvailabilitySnapshot`, …), `BookingRepository`, `IdempotencyStore`, `TimezoneService`, `EmailService`, `UnitOfWork`, `AdminDashboardRepository`.
 
-| Use Case                  | Ports Used                                                         |
-|---------------------------|---------------------------------------------------------------------|
-| `BookTrialClass`          | `BookingRepository`, `MentorRepository`, `IdempotencyStore`, `EmailPort`, `MeetingLinkPort`, `ClockPort` |
-| `CancelBooking`           | `BookingRepository`, `EmailPort`, `ClockPort`                      |
-| `GetAvailableSlots`       | `MentorRepository`, `BookingRepository`, `ClockPort`               |
-| `ListBookingsForAdmin`    | `BookingRepository`, `MentorRepository`                            |
+`GetAvailability` loads one mentor+CONFIRMED snapshot (two `findMany`s) and classifies slots in memory (`eligibleMentorsFromSnapshot`). **Booking** still calls `findEligibleMentors` inside the transaction.
+
+`BookClass` hashes the payload (SHA-256 of sorted JSON), bcrypt-hashes the cancel token, SHA-256-hashes the access token, runs `uow.run` (SERIALIZABLE), then fire-and-forget **two** emails.
+
+### 2.3 Infrastructure
+
+- `PrismaMentorRepository`, `PrismaBookingRepository`, `PrismaIdempotencyStore`, `PrismaUnitOfWork` (SERIALIZABLE, 20s timeout), `PrismaAdminDashboardRepository`.
+- `LuxonTimezoneService` (injectable clock).
+- `ResendEmailService` (`RESEND_API_KEY`, `EMAIL_FROM`), `createEmailService()`, `MockEmailService`.
+- `NodemailerEmailService` implements the port but is **not** wired in the composition root.
+- Meeting links are built in `BookClass` (`/class/{id}` or `FRONTEND_ORIGIN` prefix), not a separate MeetingLink port.
+
+### 2.4 Interfaces
+
+- Routers under `interfaces/routes/`.
+- `errorHandler` maps domain errors to HTTP (see [API.md](API.md)).
+- `GET /api/bookings/:id` and `GET /api/classes/:id` intentionally do not invoke `GetBookingUseCase`.
 
 ---
 
-## 3. Frontend Architecture: Feature-Sliced Design (FSD)
-
-### 3.1 Layer Definitions
+## 3. Frontend — Feature-Sliced Design
 
 ```
 frontend/src/
-  app/        Global setup: router, providers, global CSS.
-  pages/      Route-level components. Assemble widgets for a full screen.
-  widgets/    Composite UI blocks (e.g. BookingFormWidget, AdminTableWidget).
-  features/   Specific user interactions with side-effects (e.g. book-slot, cancel-booking).
-  entities/   Domain object representations and their basic UI (e.g. Booking, Mentor, Slot).
-  shared/     Reusable utilities, API client, UI primitives, Zod schemas, constants.
+  app/        Router, providers, global styles (`App.tsx` routes).
+  pages/      Landing, booking, booking-access, confirmation, class-room, admin-dashboard.
+  widgets/    BookingFormWidget (and tests).
+  features/   book-slot, view-availability, view-booking, cancel-booking, view-dashboard.
+  entities/   booking, slot, mentor UI/data primitives.
+  shared/     UI kit, API base (`VITE_API_URL`), timezone labels, classroom path helpers.
 ```
 
-### 3.2 Import Direction Rule
+**Import rule:** `app` / `pages` → `widgets` → `features` → `entities` → `shared`. No upward imports (e.g. features must not import pages).
 
-> **Layers may only import from layers below them.**
+**Routes**
 
-```
-pages --> widgets --> features --> entities --> shared
-app   --------------------------------^---------> shared
-```
-
-- `pages` may import `widgets`, `features`, `entities`, `shared`.
-- `widgets` may import `features`, `entities`, `shared`.
-- `features` may import `entities`, `shared`.
-- `entities` may import `shared` only.
-- `shared` has no intra-project imports.
-- No layer may import from `pages` or `app`.
-
-### 3.3 Responsibility Mapping
-
-| Responsibility              | Frontend Layer / Slice                            |
-|-----------------------------|---------------------------------------------------|
-| Global routing              | `app/`                                            |
-| Booking form UI             | `widgets/BookingFormWidget`                       |
-| Slot selection              | `features/select-slot`                            |
-| Submit booking API call     | `features/book-slot`                              |
-| Cancel booking API call     | `features/cancel-booking`                         |
-| Booking entity display      | `entities/booking`                                |
-| Mentor entity display       | `entities/mentor`                                 |
-| Admin table                 | `widgets/AdminTableWidget`                        |
-| Admin page                  | `pages/AdminPage`                                 |
-| Parent booking page         | `pages/BookingPage`                               |
-| Confirmation page           | `pages/ConfirmationPage`                          |
-| API client (axios/fetch)    | `shared/api`                                      |
-| Zod schemas (client)        | `shared/schemas`                                  |
-| Timezone display utilities  | `shared/lib/timezone`                             |
+| Path | Page |
+|------|------|
+| `/` | Landing |
+| `/book` | Booking form |
+| `/b/:accessToken` | Secure booking access |
+| `/confirmation/:id` | Legacy URL. Does not fetch by booking id. Details are `/b/:accessToken`. |
+| `/class/:id` | Demo classroom |
+| `/admin` | Dashboard |
 
 ---
 
-## 4. Data Model
+## 4. Database (Prisma / PostgreSQL)
 
-### 4.1 `Mentor`
+Tables: **`mentors`**, **`mentor_shifts`**, **`bookings`**, **`idempotency_keys`**.
+No hold table. No cron.
 
-| Column       | Type      | Notes                                                        |
-|--------------|-----------|--------------------------------------------------------------|
-| `id`         | UUID PK   |                                                              |
-| `name`       | String    |                                                              |
-| `email`      | String    | Unique                                                       |
-| `shift`      | Enum      | `SHIFT_1` (09:00–21:00 IST) or `SHIFT_2` (21:00–09:00 IST) |
-| `timezone`   | String    | IANA. Defaults to `Asia/Kolkata` for all mentors (IST)      |
-| `createdAt`  | Timestamp |                                                              |
+### Mentor
 
-### 4.2 `Booking`
+`id`, `name`, `email` unique, `timezone` (default `Asia/Kolkata`), `shift` (`SHIFT_1` \| `SHIFT_2`), `active`, timestamps.
 
-| Column              | Type      | Notes                                                             |
-|---------------------|-----------|-------------------------------------------------------------------|
-| `id`                | UUID PK   |                                                                   |
-| `mentorId`          | UUID FK   | References `Mentor.id`                                            |
-| `parentName`        | String    |                                                                   |
-| `parentEmail`       | String    |                                                                   |
-| `childName`         | String    |                                                                   |
-| `parentTimezone`    | String    | IANA timezone string supplied by parent                           |
-| `startTimeUtc`      | Timestamp | UTC; start of the 1-hour session                                  |
-| `endTimeUtc`        | Timestamp | UTC; always startTimeUtc + 1 hour                                 |
-| `status`            | Enum      | `CONFIRMED`, `CANCELLED`                                          |
-| `meetingLink`       | String    | Dummy URL                                                         |
-| `cancellationToken` | String    | UUID v4; used to authenticate cancellation                        |
-| `idempotencyKey`    | String    | Unique; client-supplied key                                       |
-| `createdAt`         | Timestamp |                                                                   |
-| `cancelledAt`       | Timestamp | Nullable; set on cancellation                                     |
+### MentorShift
 
-### 4.3 Database Constraints
+Per-mentor schedule: `dayOfWeek` (null = every day), `localStartTime` / `localEndTime`, `crossesMidnight`. Seeded; booking eligibility uses `Mentor.shift`.
 
-- `UNIQUE (mentorId, startTimeUtc)` where status = `CONFIRMED` — enforces no double-booking at DB level (implemented via partial unique index).
-- `UNIQUE (idempotencyKey)` — enforces idempotency at DB level.
+### Booking
 
----
+| Field | Notes |
+|-------|--------|
+| `startTimeUtc` / `endTimeUtc` | `timestamptz`, 1 hour apart |
+| `mentorLocalDate` | `YYYY-MM-DD` IST date for the cap |
+| `status` | `CONFIRMED` (default) \| `CANCELLED` |
+| `cancellationTokenHash` | bcrypt; raw token never stored |
+| `accessTokenHash` | SHA-256 hex, unique |
+| `idempotencyKey` | unique |
+| `cancelledAt` | set on cancel |
+| `meetingLink` | in-app class path |
 
-## 5. API Contracts
+**Indexes / constraints**
 
-### 5.1 `POST /api/bookings` — Create Booking
+- Unique `accessTokenHash`, `idempotencyKey`.
+- Partial unique `bookings_mentor_slot_confirmed_unique` on `(mentorId, startTimeUtc) WHERE status = 'CONFIRMED'` (raw SQL migration).
+- Indexes on `(mentorId, startTimeUtc)`, `(mentorId, mentorLocalDate, status)`, `status`.
 
-**Headers**:
-```
-Idempotency-Key: <uuid>
-Content-Type: application/json
-```
+**Cancellation and capacity:** Updating to `CANCELLED` drops the row out of the partial unique index and out of CONFIRMED counts.
 
-**Request Body**:
-```json
-{
-  "parentName": "string",
-  "parentEmail": "string (email)",
-  "childName": "string",
-  "parentTimezone": "string (IANA)",
-  "requestedStartUtc": "string (ISO 8601 UTC)"
-}
-```
+### IdempotencyKey
 
-**Success 201**:
-```json
-{
-  "bookingId": "uuid",
-  "mentorName": "string",
-  "startTimeUtc": "ISO 8601",
-  "endTimeUtc": "ISO 8601",
-  "meetingLink": "string",
-  "cancellationToken": "uuid",
-  "status": "CONFIRMED"
-}
-```
-
-**Error responses**: see Section 8.
-
-**Idempotent replay 200**: same body as original 201.
+`key` unique, `payloadHash`, `responseJson`, `bookingId` unique. No TTL job.
 
 ---
 
-### 5.2 `GET /api/slots` — Get Available Slots
+## 5. Transactions and concurrency
 
-**Query params**: `date` (YYYY-MM-DD, in parent's timezone), `timezone` (IANA).
+`PrismaUnitOfWork.run` uses **Serializable** isolation (not Read Committed).
 
-**Success 200**:
-```json
-{
-  "slots": [
-    { "startUtc": "ISO 8601", "endUtc": "ISO 8601", "available": true }
-  ]
-}
-```
+1. Optional pre-tx idempotency lookup.
+2. Inside tx: eligible mentors, least-loaded first. A confirmed-slot unique violation rolls back to a savepoint and tries the next eligible mentor. Then the idempotency row is inserted.
+3. After commit: emails.
 
----
+`P2034` (serialization failure) retries the whole transaction up to 3 times. Other `P2002` conflicts (idempotency key, access token) are not treated as “try the next mentor.” Cancel uses `SELECT … FOR UPDATE` on the booking row.
 
-### 5.3 `DELETE /api/bookings/:id` — Cancel Booking
-
-**Headers**:
-```
-X-Cancellation-Token: <uuid>
-```
-
-**Success 200**:
-```json
-{
-  "bookingId": "uuid",
-  "status": "CANCELLED",
-  "cancelledAt": "ISO 8601"
-}
-```
+`findEligibleMentors` does **not** issue `SELECT FOR UPDATE` on mentor rows despite an older comment on the port; safety is isolation + unique index.
 
 ---
 
-### 5.4 `GET /api/admin/bookings` — Admin: List All Bookings
+## 6. Timezone (Luxon)
 
-**Query params**: `date?`, `mentorId?`, `status?` (`CONFIRMED` | `CANCELLED`).
-
-**Success 200**:
-```json
-{
-  "bookings": [
-    {
-      "bookingId": "uuid",
-      "mentorName": "string",
-      "parentName": "string",
-      "parentEmail": "string",
-      "childName": "string",
-      "startTimeUtc": "ISO 8601",
-      "endTimeUtc": "ISO 8601",
-      "status": "CONFIRMED | CANCELLED"
-    }
-  ]
-}
-```
+All persisted instants are UTC. `TimezoneService.toUtc` / `toLocal` / `validateTimezone` / `now` wrap Luxon. Ambiguous and nonexistent local times throw domain errors (HTTP 400). Daily cap uses precomputed `mentorLocalDate`, not a SQL `AT TIME ZONE` expression at read time.
 
 ---
 
-## 6. Transaction and Locking Strategy
-
-### 6.1 Booking Transaction
-
-The `BookTrialClass` use case must execute inside a single PostgreSQL transaction with the following steps:
-
-1. **Lock the idempotency key row** (`SELECT FOR UPDATE SKIP LOCKED` or equivalent) to prevent parallel duplicate processing.
-2. **Check if idempotency key already exists** — if yes, return stored response immediately.
-3. **Load candidate mentors** (shift-eligible) with `SELECT ... FOR UPDATE` on their booking rows for the target slot. This acquires row-level locks to prevent concurrent assignment to the same mentor.
-4. **Apply eligibility filters**: no overlap, daily cap < 2.
-5. **Select least-loaded** eligible mentor.
-6. **Insert the booking record**.
-7. **Insert the idempotency key record** (with response payload).
-8. **Commit**.
-9. **After commit**: send confirmation email (outside the transaction; failure is non-fatal).
-
-### 6.2 Cancellation Transaction
-
-1. **Fetch booking by ID with `SELECT FOR UPDATE`**.
-2. **Validate**: status is `CONFIRMED`, cancellation token matches, `now() < startTimeUtc`.
-3. **Update status** to `CANCELLED`, set `cancelledAt = now()`.
-4. **Commit**.
-5. **After commit**: send cancellation email (outside transaction; failure is non-fatal).
-
-### 6.3 Isolation Level
-
-Use PostgreSQL's default **Read Committed** isolation. Row-level `SELECT FOR UPDATE` locking is sufficient for the contention patterns in this system. Serializable isolation is not required.
-
----
-
-## 7. Timezone Handling (Luxon)
-
-- **All timestamps are stored in UTC** in the database.
-- **Luxon** (`DateTime` from `luxon`) is used for all timezone arithmetic. No `new Date()`, no `Date.toLocaleString()`, no manual offset math.
-- Conversion pattern:
-
-```typescript
-// Parent-local to UTC
-const utc = DateTime.fromISO(localIso, { zone: parentTimezone }).toUTC();
-
-// UTC to mentor-local (for daily-cap boundary)
-const mentorLocal = DateTime.fromJSDate(booking.startTimeUtc, { zone: 'Asia/Kolkata' });
-const mentorDay = mentorLocal.toISODate(); // 'YYYY-MM-DD'
-
-// Shift boundary check (in IST)
-const slotInIST = DateTime.fromJSDate(requestedStartUtc, { zone: 'Asia/Kolkata' });
-```
-
-- DST handling: Luxon resolves ambiguous local times (e.g. clocks fall back) using the `disambiguation` option (`earlier` | `later` | `reject`). The default behaviour must be made explicit; implementation should **reject** ambiguous input and return a 422 to the client with a human-readable message.
-
----
-
-## 8. Error Response Format
-
-All API errors follow a consistent envelope:
-
-```json
-{
-  "error": {
-    "code": "SNAKE_CASE_CODE",
-    "message": "Human-readable description",
-    "details": {}
-  }
-}
-```
-
-| HTTP Status | Code                        | Condition                                         |
-|-------------|-----------------------------|---------------------------------------------------|
-| 400         | `VALIDATION_ERROR`          | Zod schema failure on request body                |
-| 409         | `IDEMPOTENCY_CONFLICT`      | Same key, different payload                       |
-| 409         | `SLOT_UNAVAILABLE`          | No mentor eligible for requested slot             |
-| 409         | `ALREADY_CANCELLED`         | Booking already cancelled                         |
-| 403         | `INVALID_CANCELLATION_TOKEN`| Token mismatch                                    |
-| 422         | `PAST_SLOT`                 | Requested time is in the past                     |
-| 422         | `LEAD_TIME_VIOLATION`       | Requested time is within the minimum lead window  |
-| 422         | `AFTER_START_CANCELLATION`  | Cancellation attempted after class start time     |
-| 422         | `AMBIGUOUS_TIME`            | Luxon rejected a DST-ambiguous local time         |
-| 404         | `BOOKING_NOT_FOUND`         | Booking ID does not exist                         |
-| 500         | `INTERNAL_ERROR`            | Unhandled server error                            |
-
----
-
-## 9. Idempotency Implementation
-
-1. Client must generate a UUID v4 and send it as the `Idempotency-Key` HTTP header.
-2. Server stores `(idempotencyKey, responsePayload, createdAt)` in the `IdempotencyRecord` table (or as a JSON column on `Booking`).
-3. On receipt, before any business logic:
-   - If key exists and payload hash matches: return stored response with 200.
-   - If key exists and payload hash does NOT match: return 409 `IDEMPOTENCY_CONFLICT`.
-   - If key does not exist: proceed with booking logic.
-4. Key expiry: records older than 24 hours may be pruned (background job, out of scope for v1).
-
----
-
-## 10. Cancellation Flow (Technical)
+## 7. Email (production)
 
 ```
-Client                     API (interfaces)          Application             DB
-  |                              |                        |                   |
-  | DELETE /api/bookings/:id     |                        |                   |
-  | X-Cancellation-Token: <tok> |                        |                   |
-  |----------------------------->|                        |                   |
-  |                              | CancelBooking usecase  |                   |
-  |                              |----------------------->|                   |
-  |                              |                        | BEGIN TRANSACTION |
-  |                              |                        | SELECT ... FOR UPDATE (booking row)
-  |                              |                        | validate token, status, time
-  |                              |                        | UPDATE status=CANCELLED
-  |                              |                        | COMMIT            |
-  |                              |                        |------------------>|
-  |                              |                        | send cancel email (outside TX)
-  |<-----------------------------|                        |                   |
-  | 200 { status: CANCELLED }    |                        |                   |
+NODE_ENV === 'test'  → MockEmailService
+otherwise            → createEmailService() → ResendEmailService
 ```
+
+`EmailService`: `sendBookingConfirmation`, `sendBookingCancellation`, `sendMentorBookingNotification`.
 
 ---
 
-## 11. Responsibility Mapping
+## 8. Error envelope
 
-| Responsibility            | Backend Layer          | Frontend Layer/Slice          |
-|---------------------------|------------------------|-------------------------------|
-| Timezone conversion       | `infrastructure/`      | `shared/lib/timezone`         |
-| Shift boundary validation | `domain/`              | (server-enforced only)        |
-| Daily cap enforcement     | `application/`         | (server-enforced only)        |
-| Booking transaction       | `application/` + `infrastructure/` | N/A            |
-| Least-loaded assignment   | `application/`         | N/A                           |
-| Idempotency check         | `application/`         | (client generates key)        |
-| Cancellation flow         | `application/`         | `features/cancel-booking`     |
-| Admin read queries        | `application/`         | `widgets/AdminTableWidget`    |
-| API route handling        | `interfaces/`          | N/A                           |
-| Request validation (Zod)  | `interfaces/`          | `features/`, `shared/schemas` |
-| Error formatting          | `interfaces/` (middleware) | `shared/api` (error parse) |
-| Meeting link generation   | `infrastructure/`      | (display only in `entities/`) |
-| Email dispatch            | `infrastructure/`      | N/A                           |
+`{ "code", "message" }` plus optional `alternateSlots`. See [API.md](API.md) for status codes (e.g. `SLOT_NOT_AVAILABLE` not `SLOT_UNAVAILABLE`; cancel token `401`; idempotency conflict `400`).
+
+---
+
+## 9. Frontend availability UX (implemented)
+
+- `useAvailability`: abort previous GET when date/timezone changes; ignore stale completions.
+- Slot grouping: `groupSlots.ts` day parts (morning 05–12, afternoon 12–17, evening 17–21, night otherwise).
+- `useNextAvailableDate` when the loaded day has no selectable slot.
+- Slot conflict: clear selection, refetch, copy from `useBookSlot` (`SLOT_NOT_AVAILABLE`).
+
+---
+
+## 10. Deployment (from repo config)
+
+- Frontend: Vite build; Vercel SPA rewrite in `frontend/vercel.json`.
+- Backend: `tsc` + `node dist/index.js`; `PORT`.
+- CORS and join-link prefix: `FRONTEND_ORIGIN` / `FRONTEND_ORIGINS`.
+- Email: Resend env vars only.
+
+This document does not assert a live production probe.

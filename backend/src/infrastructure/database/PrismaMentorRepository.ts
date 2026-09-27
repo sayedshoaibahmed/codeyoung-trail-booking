@@ -31,6 +31,9 @@ export class PrismaMentorRepository implements MentorRepository {
     const client = (tx as PrismaClient | undefined) ?? this.db;
     const { shift, slotStartUtc, slotEndUtc, mentorLocalDate, dailyCap } = options;
 
+    // Eligibility uses Mentor.shift (SHIFT_1 09:00–21:00 IST, SHIFT_2 21:00–09:00 IST).
+    // MentorShift rows are the seeded schedule mirror of that same window; they are
+    // not a second source of bookable hours.
     // 1. Find all active mentors on the correct shift.
     const shiftMentors = await client.mentor.findMany({
       where: { shift: toPrismaShift(shift), active: true },

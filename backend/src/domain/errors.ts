@@ -51,6 +51,18 @@ export class LeadTimeViolationError extends Error {
   }
 }
 
+/**
+ * The chosen mentor already has a CONFIRMED class at this start time.
+ * Another eligible mentor may still be free. Not an HTTP error by itself.
+ */
+export class ConfirmedSlotConflictError extends Error {
+  readonly code = 'CONFIRMED_SLOT_CONFLICT';
+  constructor() {
+    super('That mentor is already confirmed for this class time.');
+    this.name = 'ConfirmedSlotConflictError';
+  }
+}
+
 export class SlotNotAvailableError extends Error {
   readonly code = 'SLOT_NOT_AVAILABLE';
   constructor(public readonly alternateSlots: AlternateSlot[] = []) {

@@ -23,16 +23,16 @@ const booking = {
   status: 'CONFIRMED',
 };
 
-test('confirmation loads booking details from GET /bookings/:id', () => {
-  const hook = readFileSync(join(src, 'features/view-booking/model/useBooking.ts'), 'utf8');
-  assert.match(hook, /bookingApi\.getBooking\(id\)/);
+test('booking details load through the access token, not GET /bookings/:id', () => {
+  const access = readFileSync(join(src, 'pages/booking-access/ui/BookingAccessPage.tsx'), 'utf8');
+  const hook = readFileSync(join(src, 'features/view-booking/model/useBookingAccess.ts'), 'utf8');
+  assert.match(access, /useBookingAccess\(accessToken\)/);
+  assert.match(access, /BookingDetailCard/);
+  assert.match(hook, /booking-access/);
 
-  const api = readFileSync(join(src, 'entities/booking/api/index.ts'), 'utf8');
-  assert.match(api, /`\/bookings\/\$\{id\}`/);
-
-  const page = readFileSync(join(src, 'pages/confirmation/ui/ConfirmationPage.tsx'), 'utf8');
-  assert.match(page, /useBooking\(id\)/);
-  assert.match(page, /BookingDetailCard/);
+  const legacy = readFileSync(join(src, 'pages/confirmation/ui/ConfirmationPage.tsx'), 'utf8');
+  assert.doesNotMatch(legacy, /useBooking\(/);
+  assert.doesNotMatch(legacy, /getBooking/);
 });
 
 test('detail card shows mentor, parent, student, times, timezone, and status from the booking', () => {
@@ -56,7 +56,7 @@ test('detail card shows mentor, parent, student, times, timezone, and status fro
 });
 
 test('Join Class uses /class/<booking-id>', () => {
-  const page = readFileSync(join(src, 'pages/confirmation/ui/ConfirmationPage.tsx'), 'utf8');
+  const page = readFileSync(join(src, 'pages/booking-access/ui/BookingAccessPage.tsx'), 'utf8');
   assert.match(page, /classRoomPath\(booking\.id\)/);
   assert.match(page, /Join Class/);
 
@@ -78,7 +78,7 @@ test('cancel uses the existing token dialog and is hidden after start or cancel'
     true,
   );
 
-  const page = readFileSync(join(src, 'pages/confirmation/ui/ConfirmationPage.tsx'), 'utf8');
+  const page = readFileSync(join(src, 'pages/booking-access/ui/BookingAccessPage.tsx'), 'utf8');
   assert.match(page, /canOfferCancellation\(booking\)/);
   assert.match(page, /CancelBookingDialog/);
   assert.match(page, /location\.state\?\.cancellationToken/);
@@ -86,7 +86,7 @@ test('cancel uses the existing token dialog and is hidden after start or cancel'
 });
 
 test('Back to Booking is a predictable Link to /book', () => {
-  const page = readFileSync(join(src, 'pages/confirmation/ui/ConfirmationPage.tsx'), 'utf8');
+  const page = readFileSync(join(src, 'pages/booking-access/ui/BookingAccessPage.tsx'), 'utf8');
   assert.match(page, /to=["']\/book["']/);
   assert.match(page, /Back to Booking/);
   assert.doesNotMatch(page, /history\.back/);
@@ -130,10 +130,11 @@ test('admin UTC and mentor-local clocks stay distinct for the same instant', () 
   assert.notEqual(mentor, utc);
 });
 
-test('refresh path is the booking id in the URL, loaded via GET /bookings/:id', () => {
-  const page = readFileSync(join(src, 'pages/confirmation/ui/ConfirmationPage.tsx'), 'utf8');
+test('refresh path is the access token, not GET /bookings/:id', () => {
+  const page = readFileSync(join(src, 'pages/booking-access/ui/BookingAccessPage.tsx'), 'utf8');
   assert.match(page, /useParams/);
-  assert.match(page, /useBooking\(id\)/);
-  const hook = readFileSync(join(src, 'features/view-booking/model/useBooking.ts'), 'utf8');
+  assert.match(page, /useBookingAccess\(accessToken\)/);
+  assert.doesNotMatch(page, /useBooking\(id\)/);
+  const hook = readFileSync(join(src, 'features/view-booking/model/useBookingAccess.ts'), 'utf8');
   assert.doesNotMatch(hook, /localStorage/);
 });

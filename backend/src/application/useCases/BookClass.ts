@@ -43,6 +43,7 @@ import {
   IdempotencyConflictError,
   SlotNotAvailableError,
   SlotOutsideShiftError,
+  ConfirmedSlotConflictError,
   type AlternateSlot,
 } from '../../domain/errors';
 
@@ -220,7 +221,9 @@ export class BookClassUseCase {
         }
       | { ok: false };
 
-    let txResult: TxResult;
+    let txResult: TxResult | undefined;
+    const maxSerializableAttempts = 3;
+    for (let attempt = 0; attempt < maxSerializableAttempts; attempt++) {
     try {
       txResult = await this.uow.run(async (ctx) => {
         // a. Find eligible mentors (shift filter + no CONFIRMED overlap + daily cap)
@@ -237,26 +240,39 @@ export class BookClassUseCase {
           return { ok: false } as const;
         }
 
-        // b. Least-loaded mentor — first in list (sorted asc by dayCount, then id)
-        const { mentor } = eligible[0];
+        // b. Least-loaded first. If that mentor loses the CONFIRMED slot unique
+        //    index, try the next eligible mentor in the same transaction.
+        let mentor = eligible[0].mentor;
+        let booking: import('../../domain').Booking | undefined;
+        for (const candidate of eligible) {
+          try {
+            booking = await ctx.bookingRepo.create({
+              id:                   bookingId,
+              mentorId:             candidate.mentor.id,
+              parentName:           dto.parentName,
+              parentEmail:          dto.parentEmail,
+              childName:            dto.childName,
+              parentTimezone:       dto.parentTimezone,
+              startTimeUtc:         startUtc,
+              endTimeUtc:           endUtc,
+              mentorTimezone:       candidate.mentor.timezone,
+              mentorLocalDate,
+              meetingLink,
+              cancellationTokenHash: tokenHash,
+              accessTokenHash,
+              idempotencyKey:       dto.idempotencyKey,
+            });
+            mentor = candidate.mentor;
+            break;
+          } catch (err) {
+            if (err instanceof ConfirmedSlotConflictError) continue;
+            throw err;
+          }
+        }
 
-        // c. Persist booking
-        const booking = await ctx.bookingRepo.create({
-          id:                   bookingId,
-          mentorId:             mentor.id,
-          parentName:           dto.parentName,
-          parentEmail:          dto.parentEmail,
-          childName:            dto.childName,
-          parentTimezone:       dto.parentTimezone,
-          startTimeUtc:         startUtc,
-          endTimeUtc:           endUtc,
-          mentorTimezone:       mentor.timezone,
-          mentorLocalDate,
-          meetingLink,
-          cancellationTokenHash: tokenHash,
-          accessTokenHash,
-          idempotencyKey:       dto.idempotencyKey,
-        });
+        if (!booking) {
+          return { ok: false } as const;
+        }
 
         // d. Build result now (needed for idempotency responseJson)
         const result: BookClassResult = {
@@ -286,28 +302,34 @@ export class BookClassUseCase {
           bookingObj: booking,
         } as const;
       });
+      break;
     } catch (err: unknown) {
-      // P2002 = unique constraint (partial index backstop or idempotency key collision)
-      // P2034 = serialization failure
+      // P2002 = unique constraint that escaped the mentor retry (idempotency key).
+      // P2034 = serialization failure; retry the whole transaction.
       const code = (err as { code?: string }).code;
+      if (code === 'P2034' && attempt < maxSerializableAttempts - 1) {
+        continue;
+      }
       if (code === 'P2002' || code === 'P2034') {
-        // If idempotency key was the conflict, another concurrent identical request
-        // may have just succeeded — try to return its result.
         if (code === 'P2002') {
           const raceRecord = await this.idempotencyStore.findByKey(dto.idempotencyKey);
           if (raceRecord) {
             if (raceRecord.payloadHash === payloadHash) {
               return JSON.parse(raceRecord.responseJson) as BookClassResult;
             }
-            // Same key was committed with a different body. This is not a full slot.
             throw new IdempotencyConflictError(dto.idempotencyKey);
           }
         }
-        // Otherwise it's a slot conflict — gather alternates and surface
         const alternates = await this.fetchAlternates(shift, startUtc, endUtc, mentorLocalDate);
         throw new SlotNotAvailableError(alternates);
       }
       throw err;
+    }
+    }
+
+    if (!txResult) {
+      const alternates = await this.fetchAlternates(shift, startUtc, endUtc, mentorLocalDate);
+      throw new SlotNotAvailableError(alternates);
     }
 
     // ── No eligible mentor found ──────────────────────────────────────────────
