@@ -1,0 +1,38 @@
+import { useState, useEffect } from 'react';
+import { viewAvailabilityApi } from '../api';
+import type { AvailableSlot } from '../../../entities/slot/model/types';
+
+export function useAvailability(date: string, timezone: string) {
+  const [slots, setSlots] = useState<AvailableSlot[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!date || !timezone) return;
+
+    let mounted = true;
+    setIsLoading(true);
+    setError(null);
+
+    viewAvailabilityApi.getSlots(date, timezone)
+      .then(res => {
+        if (mounted) {
+          // Sort slots by start time
+          const sorted = res.slots.sort((a, b) => new Date(a.startUtc).getTime() - new Date(b.startUtc).getTime());
+          setSlots(sorted);
+        }
+      })
+      .catch(err => {
+        if (mounted) {
+          setError(err.message || 'Failed to fetch availability.');
+        }
+      })
+      .finally(() => {
+        if (mounted) setIsLoading(false);
+      });
+
+    return () => { mounted = false; };
+  }, [date, timezone]);
+
+  return { slots, isLoading, error };
+}

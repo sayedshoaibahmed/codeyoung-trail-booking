@@ -38,8 +38,8 @@ export class PrismaUnitOfWork implements UnitOfWork {
       },
       {
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-        timeout: 10_000, // 10 seconds — fail fast rather than holding locks
-        maxWait: 5_000,  // maximum time to acquire the transaction slot
+        timeout: 20_000,
+        maxWait: 15_000,
       },
     );
   }

@@ -1,7 +1,16 @@
+import { Routes, Route } from 'react-router-dom';
+import { BookingPage } from '../pages/booking/ui/BookingPage';
+import { ConfirmationPage } from '../pages/confirmation/ui/ConfirmationPage';
+import { ClassRoomPage } from '../pages/class-room/ui/ClassRoomPage';
+import { AdminDashboardPage } from '../pages/admin-dashboard/ui/AdminDashboardPage';
+
 export function App() {
   return (
-    <div className="p-4 bg-gray-100 min-h-screen">
-      <h1 className="text-2xl font-bold text-blue-600">CodeYoung Trial Class Booking System</h1>
-    </div>
-  )
+    <Routes>
+      <Route path="/" element={<BookingPage />} />
+      <Route path="/confirmation/:id" element={<ConfirmationPage />} />
+      <Route path="/class/:id" element={<ClassRoomPage />} />
+      <Route path="/admin" element={<AdminDashboardPage />} />
+    </Routes>
+  );
 }
