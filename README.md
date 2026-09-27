@@ -32,3 +32,17 @@
 1. Install dependencies in both `backend` and `frontend`.
 2. Configure `.env` in `backend`.
 3. Run `npm run start` or `npm run build` from the respective directories, or use the root workspace scripts.
+
+## Production frontend (Vercel)
+
+The Vite app reads `VITE_API_URL` at **build** time (`frontend/src/shared/api/base.ts`). Locally it defaults to `/api` and uses the Vite proxy to `http://localhost:3000`.
+
+On Vercel set:
+
+```
+VITE_API_URL=https://codeyoung-trail-booking.onrender.com/api
+```
+
+See `frontend/.env.example`. Do not put `DATABASE_URL` or other backend secrets in any `VITE_*` variable.
+
+On Render, optionally set `FRONTEND_ORIGIN` to the exact Vercel production URL (and any custom domain) so CORS allows that origin. `https://*.vercel.app` preview hosts are already allowed. Local Vite origins (`localhost` / `127.0.0.1` ports 5173–5174) are always allowed.

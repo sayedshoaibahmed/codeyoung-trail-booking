@@ -11,6 +11,7 @@
  */
 import 'dotenv/config';
 import express from 'express';
+import cors from 'cors';
 import {
   prisma,
   getAvailabilityUseCase,
@@ -25,7 +26,60 @@ import { createClassesRouter }      from './interfaces/routes/classesRouter';
 import { createAdminRouter }        from './interfaces/routes/adminRouter';
 import { errorHandler }             from './interfaces/middleware/errorHandler';
 
+/** Local Vite origins used during development. */
+const LOCAL_FRONTEND_ORIGINS = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
+];
+
+/**
+ * Extra browser origins from FRONTEND_ORIGIN / FRONTEND_ORIGINS
+ * (comma-separated). Use these for the Vercel production URL and any
+ * custom domain. Example: https://codeyoung.vercel.app
+ */
+function configuredFrontendOrigins(): string[] {
+  const raw = [process.env.FRONTEND_ORIGIN, process.env.FRONTEND_ORIGINS]
+    .filter((value): value is string => Boolean(value && value.trim()))
+    .join(',');
+  return raw
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
+function isAllowedFrontendOrigin(origin: string): boolean {
+  if (LOCAL_FRONTEND_ORIGINS.includes(origin)) return true;
+  if (configuredFrontendOrigins().includes(origin)) return true;
+
+  // Vercel preview and default production hosts: https://<project>.vercel.app
+  try {
+    const url = new URL(origin);
+    return url.protocol === 'https:' && url.hostname.endsWith('.vercel.app');
+  } catch {
+    return false;
+  }
+}
+
 const app = express();
+app.use(cors({
+  origin(origin, callback) {
+    // Non-browser clients (curl, Render health checks) send no Origin.
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    if (isAllowedFrontendOrigin(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(null, false);
+  },
+  credentials: false,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Idempotency-Key'],
+}));
 app.use(express.json());
 
 // ── Health check ──────────────────────────────────────────────────────────
