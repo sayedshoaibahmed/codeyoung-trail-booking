@@ -2,770 +2,699 @@
 
 ## AI-Assisted Development Transcript & Implementation Record
 
-### Transcript Format Note
+This document keeps the development prompts and the important implementation results in a submission-focused format. The prompt text is retained from the project prompt record; implementation results summarize verified project state, tests, documentation, and Git history.
 
-This document presents the major AI-assisted development prompts, implementation decisions, significant corrections, and verification results from the development of the CodeYoung Trial Class Booking System.
+### Project Overview
 
-Minor conversational exchanges, repetitive debugging messages, routine confirmations, and small clarification messages have been intentionally omitted for readability.
+The system lets a parent book a free **one-hour trial class** without an account. It uses 10 mentors across two IST shifts, UTC/timestamptz persistence, Luxon for timezone/DST handling, a two-hour minimum lead time, a maximum of two confirmed classes per mentor-local calendar day, secure cancellation, idempotency, and concurrency protection. The frontend uses React/FSD-style boundaries and the backend uses layered/Clean Architecture boundaries.
 
-Where the original conversation was unavailable, implementation records have been reconstructed only from verifiable project artifacts such as source files, documentation, tests, and Git history. Such sections are clearly identified and are not presented as verbatim conversation.
-
-The stage summaries below are **reconstructed from the retained project prompt record and the implementation**. They are not quoted as a complete chat log.
+**Stack:** React, Vite, TypeScript, Tailwind, Express, Prisma, PostgreSQL, Zod, Luxon, Resend.
 
 ---
 
-## 1. Project Overview
+# Prompt 0 – Project Setup & Conventions
 
-The CodeYoung Trial Class Booking System lets a parent book a free one-hour trial class without creating an account. The parent supplies contact details and a child name, sees availability in the browser timezone, and receives an immediate confirmed booking or a clear unavailable response.
+## User / Development Prompt
 
-**Problem.** Several parents can request the same hour while only a limited set of mentors is eligible. The system must assign a mentor, prevent double booking, respect shift boundaries and a daily cap, and still allow a cancelled hour to be booked again.
+Prompt 0 — Skill Setup
+Part: PRE-SETUP
 
-**Users.**
+Before starting the CodeYoung Trial Class Booking System, set up the development skills/conventions specified for this project.
 
-- Parents book, review, join a demo classroom, and cancel before the class starts.
-- Mentors are assigned by the system and notified by email. They do not sign in.
-- Administrators use a read-only dashboard of bookings and mentor load.
+Do NOT build the application yet.
 
-**Technology.** React 18, Vite, TypeScript, and Tailwind on the frontend. Node.js, Express, TypeScript, Zod, Luxon, and Prisma on the backend. PostgreSQL is the database. Resend sends production email. The deployed shape recorded in the project is Vercel for the interface, Render for the API, and Neon for PostgreSQL.
+1. CLEAN CODE SKILL
 
-**Architecture.** The backend uses Clean Architecture: `domain`, `application`, `infrastructure`, and `interfaces`. The frontend uses Feature-Sliced Design: `app`, `pages`, `widgets`, `features`, `entities`, and `shared`. A layer depends only on layers below it. Redis, Kafka, Kubernetes, event buses, and WebSockets were excluded as unnecessary for this system.
+Install:
+npx skills add btseee/clean-code-skills --skill clean-code --agent cursor
 
----
+Use it for small functions, single responsibility, clear naming, low duplication, separation of concerns, maintainability and proper error handling.
 
-## 2. Development Approach
+2. FEATURE-SLICED SKILL
 
-Development proceeded incrementally through Prompt 0 to Prompt 13. Each major stage was implemented and checked before the next stage added behavior on top of it.
+Install:
+npx skills add feature-sliced/skills --agent cursor
 
-The sequence was conventions, project foundation, planning documents, database, timezone and availability, booking engine, HTTP API and cancellation, parent frontend, admin interface, automated tests, integration corrections, documentation, senior review, and final verification.
+Use Feature-Sliced Design LIGHTLY. This project is intentionally small. Prefer:
 
-Later product work that is part of the same system—batched availability, next available date, secure booking links, the demo classroom, Resend email, and the landing page—is recorded in the stages where the Git history and source show it landing. Those items are implementation records, not separate invented prompts.
+frontend/src/pages
+frontend/src/components
+frontend/src/hooks
+frontend/src/services
+frontend/src/types
+frontend/src/utils
 
----
+Backend should use a simple layered structure:
 
-## 3. Prompt 0 – Project Setup & Conventions
+backend/src/controllers
+backend/src/services
+backend/src/repositories
+backend/src/routes
+backend/src/middleware
+backend/src/utils
+backend/src/types
+backend/src/config
 
-### Objective
+Do NOT introduce full enterprise Clean Architecture.
 
-Establish architecture and dependency rules before feature code was written.
+Do not introduce unnecessary microservices, Redis, Kafka, Kubernetes, event buses or WebSockets.
 
-### Development Prompt / Requirements
+After installation:
+1. Verify both skills succeeded.
+2. Inspect generated rule/skill files.
+3. Explain what rules were added.
+4. Do not create the database.
+5. Do not implement features.
 
-Reconstructed from the project prompt documentation and implementation.
+Stop after skill setup is complete.
 
-The backend was required to use four layers:
+## Implementation Result
 
-- `domain` — entities and rules, with no Prisma or Express imports
-- `application` — use cases and ports only
-- `infrastructure` — Prisma, Luxon, email, idempotency, and transactions
-- `interfaces` — Express routes, validation, and error mapping
-
-The frontend was required to use Feature-Sliced Design: `app`, `pages`, `widgets`, `features`, `entities`, and `shared`, with imports only toward lower layers.
-
-Microservices, Redis, Kafka, Kubernetes, event buses, and WebSockets were out of scope.
-
-### Implementation Record
-
-- Conventions were recorded as the project rule set used for later implementation.
-- Backend and frontend directory intent matched the layers above.
-- Business rules were kept out of route handlers.
-- Framework types were kept out of the domain layer.
-
-### Important Engineering Decisions
-
-Clean Architecture plus full Feature-Sliced Design was adopted as a binding constraint, not as optional packaging. That decision determined where booking rules, Prisma, and React screens were allowed to live.
-
-### Verification
-
-**Reconstructed project record.** The retained record states that conventions were fixed before feature implementation. No separate automated test count is recorded for this stage.
-
-### Issues & Corrections
-
-None recorded as a distinct defect group. The retained record notes that an earlier lightweight draft was replaced by the Clean Architecture and Feature-Sliced Design requirement.
-
-### Result
-
-Prompt 0 completed by fixing the architecture rules that the rest of the system follows.
+Development conventions were established before implementation. Clean-code practices and Feature-Sliced/layered boundaries were adopted for the project. No application features or database work were performed in this phase.
 
 ---
 
-## 4. Prompt 1 – Project Foundation
+# Prompt 1 – Project Foundation
 
-### Objective
+## User / Development Prompt
 
-Create a buildable application skeleton without the full booking product.
+Prompt 1 — Project Setup + Foundation
+Part: PROJECT FOUNDATION
 
-### Development Prompt / Requirements
+Set up the CodeYoung Trial Class Booking System project foundation.
 
-Reconstructed from the project prompt documentation and implementation.
+Inspect the repo first, confirm branch/state, and use a dedicated feature branch. Do not overwrite unrelated work.
 
-Required stack: React, Vite, TypeScript, Tailwind, React Router, React Hook Form, and Zod on the frontend; Node.js, Express, TypeScript, Prisma, Zod, Luxon, and PostgreSQL on the backend. The stage was to add configuration, directory structure, `.env.example`, a README scaffold, and build scripts. Full booking UI, booking rules, and the final database schema were explicitly deferred.
+STACK
 
-### Implementation Record
+Frontend: React, Vite, TypeScript, Tailwind CSS, React Router, React Hook Form, Zod.
+Backend: Node.js, Express, TypeScript, Prisma, Zod, Luxon.
+Database: PostgreSQL.
 
-- Git history records `1d4b36c` (`chore(setup): initialize project scaffolding and resolve build configurations`).
-- Frontend and backend packages were separated. There is no root `package.json`.
-- TypeScript, Tailwind, Prisma, and environment templates were introduced.
-- Later stages added domain, application, infrastructure, interfaces, and frontend slices on this skeleton.
+Use lightweight frontend and layered backend structures.
 
-### Important Engineering Decisions
+CORE RULES
 
-The repository stayed a single application with two packages. Distributed infrastructure was not introduced to satisfy the architecture labels.
+- Class duration: 1 hour.
+- 10 mentors: 5 on Shift 1 (09:00–21:00 IST), 5 on Shift 2 (21:00–09:00 IST).
+- No shift gap/overlap.
+- Complete 1-hour interval must fit inside a shift.
+- Store booking timestamps in UTC using PostgreSQL timestamptz.
+- Use Luxon for timezone/DST.
+- Minimum lead time: 2 hours.
+- Maximum 2 CONFIRMED classes per mentor-local calendar day.
+- CANCELLED bookings do not count toward the cap.
+- Cancellation is supported before class start and must use a secure credential.
+- Cancellation is idempotent.
+- Booking must be concurrency-safe.
 
-### Verification
+Initial task only:
+- Set up repo/project structure.
+- Install dependencies.
+- Configure TypeScript and Tailwind.
+- Configure Prisma.
+- Add .env.example.
+- Add README scaffold.
+- Add start/build scripts.
+- Verify the project starts/builds.
 
-**Reconstructed project record.** The setup commit is in Git history. A dedicated test total for Prompt 1 is not recorded.
+Do not implement full UI, booking logic or database schema yet.
 
-### Issues & Corrections
+## Implementation Result
 
-The setup commit message records that build configuration issues were resolved as part of scaffolding. No product defect is recorded for this stage.
-
-### Result
-
-Prompt 1 completed with a buildable foundation and no booking behavior yet.
-
----
-
-## 5. Prompt 2 – PRD, TRD & Edge Cases
-
-### Objective
-
-Write the planning documents that later implementation and tests would follow.
-
-### Development Prompt / Requirements
-
-Reconstructed from the project prompt documentation and implementation.
-
-Create `docs/PRD.md`, `docs/TRD.md`, and `docs/EDGE_CASES.md`. The documents had to cover the parent journey, a one-hour trial, parent and mentor timezones, daylight-saving time, ten mentors, two shifts, the daily cap, mentor assignment, alternate slots, a dummy meeting link, email, the admin dashboard, and cancellation.
-
-The technical document had to describe architecture, API contracts, the data model, transactions, idempotency, and the error format. Edge cases had to include contention, idempotency payload changes, daily-cap races, shift boundaries, overnight shifts, daylight-saving time, lead time, cancellation, email failure, and database failure.
-
-### Implementation Record
-
-- Git history records `d4623fd` (`docs(project): create comprehensive PRD, TRD, and Edge Cases documentation`).
-- Those three documents became the reference used by later code and tests.
-- Prompt 11 later revised them so they describe the implemented system rather than an earlier draft.
-
-### Important Engineering Decisions
-
-Planning documents were treated as the source for business rules, including the decision that a booking is confirmed immediately. A temporary hold state was not part of the finalized product.
-
-### Verification
-
-**Reconstructed project record.** The documentation commit is in Git history. No test suite is recorded for this documentation-only stage.
-
-### Issues & Corrections
-
-Outdated draft language, including shorter class duration and a narrower daytime shift, was removed in the later documentation pass rather than in this initial write.
-
-### Result
-
-Prompt 2 completed by establishing the product, technical, and edge-case documents.
+The monorepo foundation was created with separate `frontend/` and `backend/` packages, TypeScript, Tailwind, Prisma, environment templates, scripts, and build configuration. The project was kept as a single deployable application rather than split into services.
 
 ---
 
-## 6. Prompt 3 – PostgreSQL & Prisma
+# Prompt 2 – PRD / TRD / Edge Cases
 
-### Objective
+## User / Development Prompt
 
-Persist mentors, shifts, bookings, and idempotency keys in PostgreSQL.
+Prompt 2 — PRD + TRD + Edge Cases
+Part: PLANNING / DOCUMENTATION
 
-### Development Prompt / Requirements
+Create:
+- docs/PRD.md
+- docs/TRD.md
+- docs/EDGE_CASES.md
 
-Reconstructed from the project prompt documentation and implementation.
+PRD: document the parent booking journey, free 1-hour trial class, parent/mentor timezones, DST, 10 mentors, Shift 1 (09:00–21:00 IST, 5 mentors), Shift 2 (21:00–09:00 IST, 5 mentors), max 2 confirmed classes per mentor-local day, no double booking, least-loaded mentor assignment, alternate slots, dummy meeting link, email/mock email, read-only admin dashboard, and cancellation before class start with secure credential, idempotency, released capacity and slot.
 
-Domain entities: Mentor, MentorShift, and Booking, with statuses `CONFIRMED` and `CANCELLED`. Prisma models for those entities plus `IdempotencyKey`. Instants stored as UTC `timestamptz`. Overnight `21:00–09:00` shifts supported. Cancellation credentials stored only in a non-reversible form. A unique constraint must not permanently block rebooking a cancelled slot. Seed exactly ten mentors, five on each shift, in an idempotent way.
+TRD: document React/Vite/TypeScript, Node/Express/TypeScript, PostgreSQL + Prisma, Zod, Luxon, API contracts, data model, transaction/locking strategy, idempotency, error format and cancellation flow.
 
-### Implementation Record
+EDGE_CASES: same-slot contention, double-click/retry, reused idempotency key with changed payload, daily-cap race, no mentor, shift boundaries, overnight shift, midnight crossing, DST ambiguous/nonexistent times, half-hour offsets, past times, lead-time violation, cancellation/repeated cancellation/after-start cancellation, email failure and database failure.
 
-- Git history records `24b226d` (data model, Prisma schema, repositories, and seed) and `571133d` (MentorShift model added for compliance with this stage).
-- `BookingStatus` is only `CONFIRMED` or `CANCELLED`. There is no HOLD status.
-- A partial unique index, `bookings_mentor_slot_confirmed_unique`, applies to `(mentorId, startTimeUtc)` only where `status = 'CONFIRMED'`.
-- `idempotencyKey` and `accessTokenHash` are unique. Cancellation tokens are stored as bcrypt hashes.
-- The seed upserts ten mentors in `Asia/Kolkata`: five Shift 1 (`09:00–21:00`) and five Shift 2 (`21:00–09:00`, crossing midnight).
+Do not invent extra product features. Document ambiguities explicitly. Stop after documentation is checked.
 
-### Important Engineering Decisions
+## Implementation Result
 
-Cancelled rows are excluded from the slot unique index so a cancelled hour can be booked again. Daily-cap math uses a stored mentor-local date rather than converting timestamps in every query.
-
-### Verification
-
-**Reconstructed project record.** The retained record states that a Neon PostgreSQL database was connected, migrations were applied, and the seed produced ten mentors with five in each shift. Prompt 13 repeated that check: two migrations, schema up to date, seed idempotent, mentors 10, MentorShifts 10, Shift 1 count 5, Shift 2 count 5, and the confirmed-slot partial unique index present.
-
-### Issues & Corrections
-
-The follow-up commit `571133d` added the MentorShift Prisma model after the first schema pass. That was a compliance correction, not a change of business rules.
-
-### Result
-
-Prompt 3 completed with a transactional PostgreSQL model and an idempotent ten-mentor seed.
+PRD, TRD, and edge-case documentation were created and used as the implementation reference. The key booking rules, timezone behavior, concurrency expectations, cancellation flow, idempotency, and error contracts were documented before feature implementation.
 
 ---
 
-## 7. Prompt 4 – Timezone & Availability
+# Prompt 3 – PostgreSQL & Prisma
 
-### Objective
+## User / Development Prompt
 
-Convert parent-local times safely and expose bookable one-hour slots.
+Prompt 3 — PostgreSQL + Prisma
+Part: BACKEND + DATABASE
 
-### Development Prompt / Requirements
+Implement the PostgreSQL + Prisma database layer.
 
-Reconstructed from the project prompt documentation and implementation.
+Create models:
+1. Mentor
+2. MentorShift (or equivalent availability model)
+3. Booking
+4. IdempotencyKey
 
-Validate IANA timezones. Convert parent local time to UTC and UTC intervals to mentor local time using Luxon, not manual offsets. Require the full one-hour interval to fit the shift, including overnight Shift 2. Derive the mentor-local calendar date. Reject ambiguous and nonexistent local times. Enforce a two-hour lead time. Ignore cancelled bookings. Block overlapping confirmed bookings. Enforce the daily cap. Expose `GET /api/availability`.
+Mentor: id, name, email, timezone, active, createdAt, updatedAt.
 
-### Implementation Record
+MentorShift: mentor relation, day of week, local start time, local end time, active, and support for overnight 21:00–09:00.
 
-- Git history records `b44b17e` (`feat(availability): implement timezone/availability logic and GET /api/availability`).
-- Timezone conversion lives behind a timezone port implemented with Luxon in infrastructure.
-- Availability returns a full day of hourly slots with available, full, and blocked states.
-- Cancelled bookings do not occupy a slot or consume the daily cap.
+Booking: id, parent name/email, parent timezone, mentor relation, startTimeUtc, endTimeUtc, mentor timezone, mentor local date, meeting link, status, cancellation token hash/secure representation, cancelledAt, createdAt, updatedAt.
 
-### Important Engineering Decisions
+Statuses: CONFIRMED, CANCELLED.
 
-Parent timezone comes from the browser IANA zone. Mentors in the seed use `Asia/Kolkata`. Stored instants remain UTC.
+IdempotencyKey: unique key plus booking/result reference needed to safely return the original result.
 
-### Verification
+Use timestamptz-compatible DateTime storage. Do not create a naive unique constraint that permanently blocks rebooking a cancelled slot. Cancelled bookings must release slot and capacity.
 
-**Reconstructed project record.** Timezone, daylight-saving time, overnight shifts, and lead time were covered by the automated suite introduced in Prompt 9. No separate Prompt 4 test total is recorded.
+Create proper Prisma migrations.
 
-### Issues & Corrections
+Seed exactly 10 mentors idempotently:
+- 5 assigned to Shift 1: 09:00–21:00 IST
+- 5 assigned to Shift 2: 21:00–09:00 IST
 
-A later integration fix closed a gap where a slot could start inside a shift and still end outside it. That correction is recorded under Prompt 10.
+Add .env.example. Run migration and seed checks. Do not implement the full booking service yet.
 
-### Result
+## Implementation Result
 
-Prompt 4 completed with timezone-aware availability and UTC persistence.
-
----
-
-## 8. Prompt 5 – Booking Engine & Mentor Assignment
-
-### Objective
-
-Confirm a one-hour trial inside one database transaction and assign an eligible mentor.
-
-### Development Prompt / Requirements
-
-Reconstructed from the project prompt documentation and implementation.
-
-`BookClass` must enforce timezone conversion, a two-hour lead time, a one-hour duration, and idempotency. The same key and payload return the original result. The same key with a different payload is a conflict.
-
-Inside one transaction the use case finds candidate mentors, checks the shift and the full hour, derives the mentor-local date, counts only confirmed bookings, enforces the cap of two, checks overlap (`existing start < requested end` and `existing end > requested start`), selects the least-loaded eligible mentor, inserts the booking, and stores the idempotency result.
-
-Email is sent only after commit and must not undo a successful booking.
-
-### Implementation Record
-
-- Git history records `2520158` (`feat(booking): implement BookClass use case with UoW, idempotency, and concurrency safety`).
-- The unit of work runs at serializable isolation.
-- Least-loaded assignment uses confirmed bookings on the mentor-local date, then mentor identity.
-- Idempotency stores a SHA-256 hash of the canonical request and the original response.
-- Parent and mentor emails are invoked after the transaction returns. Each send is isolated so a mail failure does not roll back the booking.
-
-### Important Engineering Decisions
-
-Concurrency safety was placed in the database transaction, the confirmed-slot unique index, and later retry behavior, not in an in-memory lock or a hold row.
-
-### Verification
-
-**Reconstructed project record.** Booking rules were exercised by the Prompt 9 suite and again after Prompt 10 and Prompt 12. The retained record notes that remote transaction timing on Neon led to an adjustment of the Prisma interactive transaction wait settings without dropping serializable isolation.
-
-### Issues & Corrections
-
-Prompt 12 later found that a uniqueness collision on the first mentor could fail the request even when another mentor was eligible. That fix is recorded in Prompt 12. It is not claimed as part of the original Prompt 5 behavior.
-
-### Result
-
-Prompt 5 completed with a transactional booking use case and post-commit email.
+PostgreSQL + Prisma persistence was implemented with Mentor, MentorShift, Booking, and IdempotencyKey models. A partial unique index protects confirmed mentor/slot collisions while allowing cancelled slots to be rebooked. Seed data creates exactly 10 mentors: 5 on Shift 1 and 5 on overnight Shift 2.
 
 ---
 
-## 9. Prompt 6 – API & Cancellation
+# Prompt 4 – Timezone & Availability
 
-### Objective
+## User / Development Prompt
 
-Expose booking, availability, cancellation, class lookup, and the admin read model over HTTP.
+Prompt 4 — Timezone + Availability
+Part: BACKEND — TIMEZONE & AVAILABILITY
 
-### Development Prompt / Requirements
+Implement timezone and availability using Luxon only for timezone conversion/DST calculations.
 
-Reconstructed from the project prompt documentation and implementation.
+Requirements:
+- Validate IANA timezones.
+- Convert parent local requested time to UTC.
+- Convert UTC interval into each mentor timezone.
+- Validate the COMPLETE 1-hour interval against the mentor shift.
+- Correctly handle overnight 21:00–09:00 shifts.
+- Determine mentor-local calendar date from class start.
+- Never manually add/subtract offsets.
+- Handle DST ambiguous/nonexistent times safely.
+- Support non-whole-hour timezone offsets.
 
-Routes included `GET /api/availability`, `POST /api/bookings`, `GET /api/bookings/:id`, `POST /api/bookings/:id/cancel`, `GET /api/classes/:id`, and `GET /api/admin/dashboard`.
+Availability:
+- 1-hour slots.
+- Minimum 2-hour lead time.
+- Slot must fit entirely inside a shift.
+- CANCELLED bookings do not block availability.
+- CONFIRMED bookings block overlapping intervals.
+- Max 2 confirmed classes per mentor-local day.
 
-Cancellation is allowed only before the start, only for a confirmed booking, with a secure credential, atomically and idempotently. A repeat cancel is safe. Cancel after start is rejected. `cancelledAt` is stored and capacity is released. Zod validates input. Errors use a consistent JSON shape. Controllers do not contain business rules or Prisma calls.
+Implement GET /api/availability?date=&timezone=.
 
-### Implementation Record
+Add focused tests for US DST, UK DST, India, overnight shifts, boundaries, 1-hour duration, mentor-local date and lead time. Do not implement final booking assignment yet.
 
-- Git history records `4bc6a04` (`feat(interfaces): complete all API routes, CancelClass use case, and admin dashboard`).
-- Cancel compares the presented token with the bcrypt hash and locks the booking row with `SELECT … FOR UPDATE`.
-- A later security pass locked `GET /api/bookings/:id` and the class-id alias so an id alone returns an invalid-link response and does not load the booking.
-- Secure reopen uses `POST /api/booking-access` with a separate access token stored as a SHA-256 hash.
+## Implementation Result
 
-### Important Engineering Decisions
-
-The booking id is not a public credential. Cancellation and view-access tokens are different secrets, and only their hashes are stored.
-
-### Verification
-
-**Reconstructed project record.** API validation, cancel-before-start, repeat cancel, and cancel-after-start are part of the automated scenarios listed under Prompt 9. Prompt 13 reconfirmed the locked GET-by-id behavior in the router.
-
-### Issues & Corrections
-
-An early confirmation page called the locked GET-by-id route. Prompt 12 removed that fetch. Details are under Prompt 12.
-
-### Result
-
-Prompt 6 completed with a validated HTTP API and secure, idempotent cancellation.
-
----
-
-## 10. Prompt 7 – Parent Booking Frontend
-
-### Objective
-
-Let a parent choose a slot and complete a booking in the browser.
-
-### Development Prompt / Requirements
-
-Reconstructed from the project prompt documentation and implementation.
-
-Build the flow with Feature-Sliced Design: booking, mentor, and slot entities; view-availability, book-slot, and cancel-booking features; a booking-form widget; booking, confirmation, and classroom pages; routing; and shared API and UI primitives.
-
-The booking page collects parent details, uses the browser timezone, lists one-hour slots, validates input, and handles loading, errors, empty availability, and alternate slots. Booking requests send an idempotency key. The classroom is a demo room, not a video provider.
-
-### Implementation Record
-
-- Git history records `3e41bb5` (`feat(frontend): implement FSD frontend, DB config, and UI redesign`).
-- The booking form posts to the booking API and navigates to the secure booking page after success.
-- Slot selection is cleared when the date changes (corrected in Prompt 10).
-- The parent timezone is read from `Intl`, not from a country picker.
-
-### Important Engineering Decisions
-
-The frontend does not assign mentors or enforce the cap. Those rules stay on the server. The client displays the result and refreshes availability after a conflict.
-
-### Verification
-
-**Reconstructed project record.** Frontend tests were expanded in later stages. The Prompt 12 and Prompt 13 totals are 61 frontend tests passed. A Prompt 7-only count is not recorded.
-
-### Issues & Corrections
-
-Date defaulting, stale slot selection, and a loading flash are recorded under Prompt 10.
-
-### Result
-
-Prompt 7 completed with a parent booking flow on the Feature-Sliced Design structure.
+Luxon-based timezone/DST handling and availability were implemented. Availability validates the complete one-hour interval, supports the overnight shift, applies the two-hour lead time, ignores cancelled bookings, and calculates mentor-local dates for the daily cap. Later optimization batched availability queries without changing the business rules.
 
 ---
 
-## 11. Prompt 8 – Admin Dashboard & UI
+# Prompt 5 – Booking Engine & Mentor Assignment
 
-### Objective
+## User / Development Prompt
 
-Show operations data without adding write actions or authentication.
+Prompt 5 — Booking Transaction + Mentor Assignment
+Part: BACKEND — BOOKING ENGINE
 
-### Development Prompt / Requirements
+Implement the core booking service with transaction and concurrency safety.
 
-Reconstructed from the project prompt documentation and implementation.
+Validate with Zod, timezone, local date/time, convert to UTC with Luxon, enforce 2-hour lead time and exactly 1-hour duration.
 
-A read-only dashboard backed by `GET /api/admin/dashboard` shows today's confirmed classes, today's cancelled classes, upcoming classes, mentor load, status, and shift. Shift labels are exactly `09:00–21:00 IST` and `21:00–09:00 IST`. The interface should be responsive, keyboard usable, and explicit about timezones. No extra product features were requested.
+Idempotency:
+- Same key + same payload => original result.
+- Same key + materially different payload => conflict.
 
-### Implementation Record
+Inside ONE database transaction:
+- Find candidate active mentors.
+- Lock relevant mentor/booking rows as needed.
+- Convert requested UTC interval to mentor local time.
+- Validate the full interval against shift.
+- Determine mentor-local date.
+- Count only CONFIRMED bookings.
+- Enforce max 2 per mentor-local day.
+- Check interval overlap.
+- Choose least-loaded eligible mentor with deterministic tie-break.
+- Create booking.
+- Persist idempotency result.
+- Commit.
 
-- The admin API and dashboard widget were added with the interface stage (`4bc6a04`) and the frontend stage (`3e41bb5`).
-- Mentor shift text comes from stored shift data.
-- Admin clocks distinguish UTC from the mentor-local zone. A frontend test checks that the mentor clock uses the stored mentor timezone rather than the browser zone.
+Overlap:
+ExistingStart < RequestedEnd AND ExistingEnd > RequestedStart
 
-### Important Engineering Decisions
+Protect against simultaneous same-slot bookings, simultaneous last-cap bookings and retries.
 
-The dashboard is intentionally unauthenticated in this version. That limitation is documented rather than hidden.
+If no mentor is available, return a controlled response and alternate slots where supported.
 
-### Verification
+After commit, create/use dummy meeting link and send email/mock email. Email failure must NOT roll back a successful booking.
 
-**Reconstructed project record.** Admin display behavior is covered by frontend tests included in the later 61-test total. No separate Prompt 8 count is recorded.
+Add tests for double booking, daily cap, concurrent last slot, idempotency, least-loaded selection and no mentor.
 
-### Issues & Corrections
+## Implementation Result
 
-Prompt 10 fixed hardcoded mentor labels and a UTC label that was actually browser-local time. Those fixes are listed under Prompt 10.
-
-### Result
-
-Prompt 8 completed with a read-only admin dashboard and the required shift labels.
+The booking use case was implemented with idempotency, mentor eligibility checks, daily-cap enforcement, overlap detection, deterministic least-loaded assignment, and transactional concurrency protection. No HOLD state or external locking infrastructure was introduced. Email is handled after a successful booking commit.
 
 ---
 
-## 12. Prompt 9 – Automated Testing
+# Prompt 6 – API & Cancellation
 
-### Objective
+## User / Development Prompt
 
-Lock the business rules with automated tests and fix real failures without redesigning the system.
+Prompt 6 — API Layer + Cancellation
+Part: BACKEND — API + CANCELLATION
 
-### Development Prompt / Requirements
+Implement:
+GET /api/availability
+POST /api/bookings
+GET /api/bookings/:id
+POST /api/bookings/:id/cancel
+GET /api/classes/:id
+GET /api/admin/dashboard
 
-Reconstructed from the project prompt documentation and implementation.
+Cancellation:
+- Parent can cancel before class start.
+- Use a secure token/credential because there is no full auth.
+- Store only a secure representation/hash where appropriate.
+- Only CONFIRMED bookings can transition to CANCELLED.
+- Cancellation is atomic and idempotent.
+- Repeated cancellation returns a controlled successful/already-cancelled result.
+- Cancellation after class start is rejected.
+- Record cancelledAt.
+- CANCELLED bookings no longer count toward daily capacity and release the slot.
 
-The required scenarios were parent timezone conversion, United States and United Kingdom daylight-saving time, India time, non-whole-hour offsets, exact one-hour duration, shift start and end, overnight shift, midnight crossing, two-hour lead time, daily cap, cancelled bookings excluded from the cap and releasing the slot, same-slot contention, concurrent last daily-cap position, idempotency replay and payload conflict, different keys for the same slot, cancellation before start, repeated cancellation, cancellation after start, no eligible mentor, email failure after commit, and API validation errors.
+Use Zod validation and one consistent JSON error format.
 
-### Implementation Record
+Security: do not expose cancellation credentials, validate inputs and avoid leaking internal DB errors.
 
-- Backend tests use Vitest and cover domain rules, use cases, and HTTP behavior through ports and fixtures.
-- The first comprehensive run recorded in the project is **180 tests passed, 0 failed, across 8 files**.
-- Fixture problems found during that run, including an India-time assertion and invalid UUID fixtures, were corrected without changing product rules.
+Use Nodemailer/Ethereal or logged mock email. Keep business logic in services and API code separated into routes/controllers. Test cancellation and API errors.
 
-### Important Engineering Decisions
+## Implementation Result
 
-Concurrency cases at this stage simulated database conflict codes. They were not a full parallel test against a live PostgreSQL race. That limit was kept visible for the integration stage.
+The API and cancellation flow were implemented with Zod validation, consistent errors, secure cancellation credentials, atomic/idempotent cancellation, and controlled booking access. Booking IDs alone do not expose private booking details; secure access tokens are used for the parent booking view.
 
-### Verification
+---
+
+# Prompt 7 – Parent Booking Frontend
+
+## User / Development Prompt
+
+Prompt 7 — Frontend Booking Flow
+Part: FRONTEND — BOOKING
+
+Implement the main frontend booking experience using React, TypeScript, React Router, Tailwind, React Hook Form and Zod.
+
+Create:
+- Booking page
+- Confirmation page
+- Dummy class room: /class/:id
+
+Booking page:
+- Parent information form.
+- Detect/show parent timezone where practical.
+- Show 1-hour available slots and explicit timezone.
+- Zod validation.
+- Loading, validation, no-availability and alternate-slot states.
+
+Submit:
+- Generate idempotency key.
+- Disable submit while submitting.
+- Handle retries safely.
+- Display controlled backend errors.
+
+Confirmation shows:
+- Booking reference
+- Parent name
+- Mentor
+- Class time in parent timezone
+- Mentor-local time where useful
+- Duration: 1 hour
+- Meeting link
+- Cancellation option
+
+Cancellation UI:
+- Cancel Class button
+- Confirmation dialog
+- Send secure credential/token as required
+- Success/error states
+- No active cancel option after cancellation
+
+Class room is clearly a mock/demo meeting room. Keep components simple and reusable.
+
+## Implementation Result
+
+The React booking flow was implemented with timezone-aware slot selection, form validation, idempotent submission, confirmation, cancellation, and an in-app demo classroom. The UI displays both parent-local and mentor-local times where useful and keeps booking decisions server-authoritative.
+
+---
+
+# Prompt 8 – Admin Dashboard & UI
+
+## User / Development Prompt
+
+Prompt 8 — Admin Dashboard + UX
+Part: FRONTEND — ADMIN / UX
+
+Implement the read-only admin dashboard and polish frontend UX.
+
+Use GET /api/admin/dashboard.
+
+Show:
+- Today's confirmed classes
+- Today's cancelled classes
+- Upcoming classes
+- Mentor load
+- Booking status
+- Mentor shift
+- Useful date/time information
+
+Display exactly:
+- Shift 1: 09:00–21:00 IST
+- Shift 2: 21:00–09:00 IST
+
+Do not call them day/international shifts.
+
+UX:
+- Responsive/mobile-friendly
+- Clear hierarchy
+- Accessible labels
+- Keyboard-friendly controls
+- Loading, empty, error and confirmation states
+- Clear timezone display
+- Clear 1-hour duration
+- Clear cancellation status
+
+Do not add unnecessary animation, complex state management or extra features.
+
+## Implementation Result
+
+The read-only admin dashboard was implemented with today's/upcoming bookings, mentor load, status, and shift information. Responsive and accessibility-focused UI improvements were applied without changing the booking rules.
+
+---
+
+# Prompt 9 – Automated Testing
+
+## User / Development Prompt
+
+Prompt 9 — Testing
+Part: TESTING
+
+Create and run a comprehensive booking-correctness test suite.
+
+Test:
+1. Parent timezone conversion
+2. US DST
+3. UK DST
+4. India timezone
+5. Non-whole-hour offsets
+6. Exact 1-hour duration
+7. Shift start boundary
+8. Shift end boundary
+9. Overnight 21:00–09:00
+10. Midnight crossing
+11. 2-hour lead time
+12. Daily cap of 2 confirmed classes per mentor-local day
+13. Cancelled booking not counting toward cap
+14. Cancelled booking releasing slot
+15. Same-slot concurrent booking
+16. Concurrent last-cap position
+17. Same idempotency key + same payload
+18. Same idempotency key + changed payload
+19. Different keys targeting same slot
+20. Cancellation before start
+21. Repeated cancellation
+22. Cancellation after start
+23. No eligible mentor
+24. Email failure after booking commit
+25. API validation errors
+
+Run the full suite, fix failures without changing requirements, and report tests passed/failed, root causes and fixes.
+
+## Implementation Result
+
+The comprehensive backend test suite reached 180 passing tests with coverage across timezone/DST, shifts, lead time, daily cap, cancellation, idempotency, mentor assignment, no-mentor cases, email failure, and API validation. Failures found during the run were corrected without weakening requirements.
+
+---
+
+# Prompt 10 – Integration & Bug Fixes
+
+## User / Development Prompt
+
+Prompt 10 — Full Integration + Bug Fix
+Part: INTEGRATION / BUG FIX
+
+Audit the entire application: frontend, backend, Prisma/PostgreSQL, APIs, timezone logic, availability, booking transaction, mentor assignment, daily cap, cancellation, idempotency, concurrency, email/mock email, admin dashboard and documentation.
+
+Verify the complete flow from parent opening the booking page through booking, confirmation, meeting link, cancellation, released capacity/slot and admin status.
+
+Check specifically for:
+- Type/API mismatches
+- Incorrect API paths
+- Timezone conversion errors
+- 30-minute remnants
+- Old 09:00–18:00 remnants
+- Cancellation treated as out of scope
+- Shift naming inconsistencies
+- DB constraint problems
+- Idempotency bugs
+- Concurrency bugs
+- Error handling inconsistencies
+
+Do not add new product features. Fix real bugs/inconsistencies only and verify again.
+
+## Implementation Result
+
+The integration audit fixed seven concrete defects: complete shift-fit validation, idempotency conflict handling, mentor display, UTC/admin time formatting, browser-local date defaults, stale slot selection after date changes, and loading-state flashes. Verification reached 182 passing backend tests, with builds and lint passing.
+
+---
+
+# Prompt 11 – Documentation
+
+## User / Development Prompt
+
+Prompt 11 — Documentation Finalization
+Part: DOCUMENTATION FINALIZATION
+
+Finalize documentation based ONLY on the actual implementation.
+
+Update:
+- README.md
+- docs/PRD.md
+- docs/TRD.md
+- docs/EDGE_CASES.md
+- API documentation where applicable
+- .env.example documentation
+
+Remove outdated statements such as 30-minute classes, cancellation being out of scope and only 09:00–18:00 availability.
+
+Document final rules:
+- 1-hour classes
+- Shift 1: 09:00–21:00 IST
+- Shift 2: 21:00–09:00 IST
+- 5 mentors per shift
+- UTC storage
+- Luxon timezone/DST
+- 2-hour lead time
+- 2 confirmed classes per mentor-local calendar day
+- cancellation before class start
+- secure cancellation credential
+- idempotent cancellation
+- transaction/concurrency strategy
+- idempotency
+- alternate slots/no-mentor response
+
+README should cover overview, architecture, stack, setup, env vars, migration, seed, run/test commands, API overview, business rules, assumptions and demo flow.
+
+Do not document features that do not exist.
+
+## Implementation Result
+
+README, PRD, TRD, EDGE_CASES, API documentation, frontend documentation, and `.env.example` were aligned to the implemented product. Outdated 30-minute, 09:00–18:00, and cancellation-out-of-scope statements were removed.
+
+---
+
+# Prompt 12 – Senior Engineering Review
+
+## User / Development Prompt
+
+Prompt 12 — Final Senior Code Review
+Part: FINAL CODE REVIEW
+
+Perform a final senior-engineer review.
+
+Review:
+- Booking correctness
+- Timezone/DST correctness
+- Overnight shift correctness
+- 1-hour interval handling
+- Daily-cap correctness
+- Concurrency safety
+- Idempotency
+- Cancellation security
+- Database schema/indexes
+- API validation/errors
+- Frontend UX/accessibility
+- Separation of concerns
+- Dead/duplicate code
+- Environment configuration/secrets
+- Build reliability
+- Test coverage
+
+Pay special attention to race conditions, transaction boundaries, state transitions, timezone assumptions, Prisma queries, rebooking cancelled slots, idempotency and cancellation credential leakage.
+
+Make only necessary fixes. Do not rewrite architecture unnecessarily.
+
+Run TypeScript checks, frontend build, backend build, tests and Prisma validation/generation.
+
+Report critical issues, fixes, remaining non-critical issues and final verification status.
+
+## Implementation Result
+
+Senior review found and fixed two important correctness defects: mentor-collision handling now rolls back a failed mentor insert to a savepoint and tries another eligible mentor, while serialization failures retry the transaction; the confirmation page now uses secure booking access instead of the intentionally locked public-ID endpoint. Final verification reached 244 backend and 61 frontend tests.
+
+---
+
+# Prompt 13 – Final Verification & Submission
+
+## User / Development Prompt
+
+Prompt 13 — Git + Submission
+Part: GIT + SUBMISSION
+
+Prepare the project for final CodeYoung assignment submission.
+
+Run tests, frontend/backend builds, Prisma validation, migration/seed checks and .env.example checks.
+
+Search tracked files for secrets/API keys/passwords. Confirm no unnecessary files are committed. Confirm README, PRD, TRD, EDGE_CASES and API docs are complete and match implementation. Confirm cancellation, 1-hour booking and Shift 1/Shift 2 rules are consistent. Confirm no old 30-minute or 09:00–18:00 requirements remain.
+
+TRANSCRIPT.md must contain the actual development conversation/prompts and important implementation decisions. Do not fabricate history.
+
+Git:
+- Inspect git status.
+- Inspect git diff.
+- Review staged files.
+- Create a clear final commit message.
+- Do NOT push automatically unless explicitly instructed.
+
+Final report:
+1. Project status
+2. Tests passed
+3. Builds passed
+4. Database/migration status
+5. Main implemented features
+6. Known limitations
+7. Git commit hash
+8. Anything remaining before submission
+
+Stop after final verification and commit preparation.
+
+## Implementation Result
+
+Final submission checks confirmed the implemented business rules, builds/tests, Prisma validation, migration/seed state, documentation consistency, and tracked-file secret scan. Implementation was finalized in commit `2055eb0`; the transcript was added separately in commit `64da4b5`.
+
+---
+
+# Additional Important Development Work
+
+These were important implementation and verification activities completed alongside the numbered prompts. Minor debugging details and repetitive UI tweaks are intentionally omitted so the record stays focused on evaluation-relevant work.
+
+## 1. 24-hour availability UX
+
+Availability was organized into Morning, Afternoon, Evening, and Night groups with clear available/unavailable/selected states and explicit timezone context.
+
+## 2. Production email with Resend
+
+Parent confirmation/cancellation and mentor notification emails were integrated through a Resend adapter. Email runs after the booking transaction commits so an email failure cannot undo a successful booking.
+
+## 3. Secure booking access
+
+A SHA-256-hashed access token and `/b/:accessToken` flow were added; the public booking-ID endpoint remains locked to prevent unauthorized disclosure.
+
+## 4. Demo classroom
+
+The class flow was moved to an in-app demo classroom so the assignment does not depend on an external meeting service.
+
+## 5. Timezone presentation
+
+The UI and emails show parent-local and mentor-local times with explicit timezone labels while calculations continue to use IANA zones and UTC storage.
+
+## 6. Availability reliability
+
+Availability queries were optimized, stale requests were guarded with AbortController/request IDs, loading states were corrected, and a next-available-date endpoint was added.
+
+## 7. Deployment
+
+The frontend was deployed on Vercel, the API on Render, and PostgreSQL on Neon. SPA routing, CORS, production API configuration, migrations, seed data, and real booking/cancellation flows were verified.
+
+## 8. Real database verification
+
+The application was checked against real PostgreSQL runtime paths, including the partial confirmed-slot unique index, idempotency, secure access, mentor seed data, booking transactions, and cancellation.
+
+## 9. UI quality
+
+Landing-page content, responsive layouts, accessibility focus states, image alt text, booking confirmation, and admin presentation were polished for the submitted product.
+
+## 10. Final senior-review fixes
+
+The mentor-collision savepoint/retry logic and secure confirmation-route fix were regression-tested and included in the final implementation.
+
+# Final Verification Summary
 
 | Check | Result |
 | --- | --- |
-| First comprehensive automated run | 180 passed, 0 failed, 8 files |
-
-### Issues & Corrections
-
-Test fixtures and assertions were corrected. No product redesign is recorded for this stage.
-
-### Result
-
-Prompt 9 completed with 180 passing tests and a documented limit on how concurrency was simulated.
-
----
-
-## 13. Prompt 10 – Integration & Bug Fixes
-
-### Objective
-
-Compare the running system with the architecture and business rules, and fix real integration defects without adding features.
-
-### Development Prompt / Requirements
-
-Reconstructed from the project prompt documentation and implementation.
-
-Review Feature-Sliced Design, Clean Architecture, Prisma, APIs, timezones, availability, assignment, the daily cap, cancellation, idempotency, concurrency, email, admin behavior, and documentation. Check for mismatched routes, old 30-minute or `09:00–18:00` rules, shift naming, constraints, and layer violations. Do not add product features.
-
-### Implementation Record
-
-Seven defect groups were corrected:
-
-1. A slot could start inside a shift and end outside it. The full one-hour interval is now validated. Intervals that cross the shift boundary are rejected for booking and skipped when building alternates.
-2. An idempotency race with a different body could be treated as a full slot. A payload mismatch now returns an idempotency conflict.
-3. Admin class cards used a generic mentor label. They show the assigned mentor name.
-4. Admin times were labeled UTC while formatted in the browser zone. UTC and mentor-local clocks are formatted explicitly.
-5. The booking date could default to the UTC calendar day. It uses the browser-local date.
-6. Changing the date kept the previously selected slot. The selection is cleared when the date changes.
-7. Availability and confirmation could flash an empty or error state because loading began as false. The initial loading state was corrected.
-
-Git history records `0ce2cb0` (`fix(booking+ui): enforce shift fit, harden availability errors, and add booking tests`) among the integration fixes.
-
-### Important Engineering Decisions
-
-Fixes stayed inside existing use cases and UI state. No hold status, queue, or new service was added to paper over the defects.
-
-### Verification
-
-| Check | Result |
-| --- | --- |
-| Backend tests after the fixes | **182 passed, 0 failed** |
-| Backend TypeScript and build | Passed |
-| Frontend TypeScript and Vite build | Passed |
+| Backend tests | **244 passed** |
+| Frontend tests | **61 passed** |
+| Backend/frontend builds | Passed |
 | oxlint | Passed |
-
-**Reconstructed project record.** The retained integration notes state that a real Neon database was in use and that Prisma repositories were on the runtime path. Migration, seed, and the ten-mentor roster were verified in the database records associated with this project and were checked again in Prompt 13. The retained Prompt 10 notes do not include a separate log of one live booking-and-cancel script, so that exercise is not claimed as a numbered Prompt 10 test result. The retained deployment record states that booking and cancellation were manually exercised on the deployed system during development.
-
-### Issues & Corrections
-
-The seven groups above are the significant corrections. Smaller assertion and environment messages from the same pass are omitted.
-
-### Result
-
-Prompt 10 completed after the identified integration issues were corrected and the implementation was re-verified at 182 passing tests.
-
----
-
-## 14. Prompt 11 – Documentation
-
-### Objective
-
-Make the written docs match the system that was actually built.
-
-### Development Prompt / Requirements
-
-Reconstructed from the project prompt documentation and implementation.
-
-Update `README.md`, `docs/PRD.md`, `docs/TRD.md`, `docs/EDGE_CASES.md`, the API document, `.env.example`, and the frontend README. Remove outdated claims such as 30-minute classes, a `09:00–18:00` shift, cancellation being out of scope, and a lighter architecture. Document the one-hour class, both shifts, UTC storage, Luxon, the two-hour lead time, the cap of two confirmed classes, cancellation, idempotency, concurrency, and the layer rules.
-
-### Implementation Record
-
-- The files above were rewritten against the implementation.
-- `docs/API.md` describes the live routes, including locked GET-by-id and token-based booking access.
-- `.env.example` uses placeholders. Lead time, daily cap, and alternate-slot counts are documented as hardcoded, not as live environment variables.
-- The README is a setup guide and records the public site `https://codeyoung-trail-booking.vercel.app/` and the repository URL. It does not contain secrets.
-- A wording fix during final verification updated the README, edge cases, and technical document so they describe next-mentor retry and serialization retry. That correction is included in commit `2055eb0`.
-
-### Important Engineering Decisions
-
-Documentation claims only behavior present in code. HOLD, MentorHold, and a temporary reservation are explicitly described as not implemented.
-
-### Verification
-
-**Reconstructed project record.** Prompt 11 was a documentation pass. Prompt 13 reviewed the same files for consistency with the code. No new test count is attributed solely to Prompt 11.
-
-### Issues & Corrections
-
-Early drafts still described a failed booking when another mentor was free. That sentence was corrected after the Prompt 12 retry behavior existed.
-
-### Result
-
-Prompt 11 completed with documentation aligned to the implemented product.
-
----
-
-## 15. Prompt 12 – Senior Engineering Review
-
-### Objective
-
-Review correctness, security, and architecture, and apply only the defects that were real.
-
-### Development Prompt / Requirements
-
-Reconstructed from the project prompt documentation and implementation.
-
-Review booking rules, timezones, overnight shifts, one-hour fit, the daily cap, concurrency, idempotency, cancellation, indexes, API errors, frontend behavior, layer boundaries, dead code, secrets, builds, and tests. Change only what was necessary. Run tests, builds, and Prisma checks.
-
-### Implementation Record
-
-Two defects were fixed.
-
-1. **Mentor collision.** If the least-loaded mentor lost the confirmed-slot unique index, the booking failed even when another eligible mentor remained. The insert now uses a PostgreSQL savepoint. A confirmed-slot unique violation rolls back to that savepoint and the use case tries the next eligible mentor in the same transaction. A serialization failure (`P2034`) retries the whole transaction up to three times. Idempotency-key and access-token unique violations are not treated as “try the next mentor.”
-2. **Confirmation route.** `/confirmation/:id` called the locked GET-by-id API. The page no longer loads private booking details by id. Parents use `/b/:accessToken`.
-
-Regression coverage was added for the collision path and for the confirmation page behavior.
-
-The same review period’s surrounding product work, already in Git history before the final commit, includes batched availability (`aa1c5e5`), next-available-date (`c225e0e`), secure access links (`22fd934`), the in-app classroom (`7289481`, `974b328`), and Resend email (`ef7b0f8`). Those are recorded here as verified repository history, not as extra Prompt 12 requirements.
-
-### Important Engineering Decisions
-
-The collision fix stays inside the existing serializable transaction. It does not add a hold row. The confirmation page does not bypass the locked booking-id endpoint.
-
-### Verification
-
-| Check | Result |
-| --- | --- |
-| Backend Vitest | **244 passed, 0 failed, 17 files** |
-| Frontend tests | **61 passed, 0 failed** |
-| Backend TypeScript and build | Passed |
-| Frontend TypeScript and Vite build | Passed |
-| oxlint | 0 warnings, 0 errors |
-| Prisma schema validation | Passed |
-| Secret scan and `git diff --check` | Passed, as recorded for this review |
-
-`prisma generate` hit the known Windows `EPERM` lock while renaming the query-engine DLL. No files were deleted to force the rename.
-
-### Issues & Corrections
-
-Only the mentor-collision and confirmation-route defects above were treated as review findings that required code changes.
-
-### Result
-
-Prompt 12 completed after those two defects were fixed and the recorded checks passed.
-
----
-
-## 16. Prompt 13 – Final Verification & Submission
-
-### Objective
-
-Confirm the finished system, correct only genuine mismatches, and create one local commit without pushing or deploying.
-
-### Development Prompt / Requirements
-
-Reconstructed from the project prompt documentation and implementation.
-
-Re-check booking rules, availability, email, the frontend, the absence of HOLD, tests, Prisma, secrets, documentation, architecture direction, and Git contents. Run backend and frontend tests and builds. Validate the schema, migration status, and seed without resetting the database. Stage only reviewed files. Create one commit, `feat(submission): finalize CodeYoung assignment`. Do not push or deploy. Do not treat this transcript file as part of that commit.
-
-### Implementation Record
-
-- No new product feature was added in this stage.
-- Documentation lines that still denied next-mentor retry were updated to match Prompt 12.
-- The final commit is `2055eb08fd50500269324de42ad3ae1bca9ce0a6` (`2055eb0`) on `feature/project-setup`.
-- That commit includes the review fixes, documentation, landing page updates, and `frontend/src/pages/landing/ui/hero-study.webp`.
-- The landing page at `/` shows CodeYoung branding, the hero image, benefits, how it works, and calls to action that route to `/book`. A headless render of the local page confirmed those sections, the image alt text, four links to `/book`, `overflow-x-hidden`, and focus-visible styles. The interactive IDE browser did not connect for a keyboard walkthrough.
-- `TRANSCRIPT.md` was intentionally left out of commit `2055eb0`.
-
-### Important Engineering Decisions
-
-Submission verification did not weaken tests, reset data, or introduce a hold feature to close residual race cases.
-
-### Verification
-
-| Check | Result |
-| --- | --- |
-| Backend Vitest | **244 passed, 17 files** |
-| Frontend tests | **61 passed, 0 failed** |
-| Backend type check and build | Passed |
-| Frontend type check and Vite build | Passed |
-| oxlint | 0 warnings, 0 errors |
-| Prisma validate | Passed |
-| Prisma generate | Windows `EPERM` on the query-engine DLL; reported, not forced |
-| Migration status | 2 migrations, schema up to date |
-| Seed | Idempotent; 10 mentors and 10 shift rows remained |
-| Mentors | 5 Shift 1, 5 Shift 2 |
-| Indexes | Confirmed-slot partial unique index, unique idempotency key, unique access-token hash |
-| Tracked secret scan | No Resend key, cloud access key, or database password in tracked files |
-| `.env` | Ignored; not committed |
-| Git after commit | Working tree clean except this untracked transcript; branch ahead of origin by 1; push not performed |
-| Deployment | Not performed in Prompt 13 |
-
-The public site already recorded in the README is `https://codeyoung-trail-booking.vercel.app/`, with the API on Render and data in Neon. That deployment predates this verification stage.
-
-### Issues & Corrections
-
-The only change required by the audit was documentation that lagged the mentor-retry behavior. No further product defect was fixed in this stage.
-
-### Result
-
-Prompt 13 completed with the recorded verification results and local commit `2055eb0`. The branch was not pushed and the application was not redeployed.
-
----
-
-## Additional implementation records
-
-These items are part of the finished system. They are **reconstructed from Git history, source, and tests**, and they are not presented as missing prompt numbers.
-
-### Availability performance
-
-The earlier availability path could run about **24 slots × 3 sequential database queries** for one date. Commit `aa1c5e5` loads active mentors and relevant confirmed bookings in batch and evaluates eligibility in memory. Booking assignment still uses the transactional mentor query. The retained record says latency improved after the change. A precise before-and-after benchmark is not preserved here, so no millisecond claim is stated.
-
-### Slot loading and grouping
-
-Commit `94f2b4f` and related UI work added abort and stale-response protection, loading placeholders, and a disabled submit control while slots are loading. The day is grouped into Morning, Afternoon, Evening, and Night. Unavailable slots stay visible and are not selectable. Night ordering keeps late evening before the after-midnight hours.
-
-### Next available date
-
-Commit `c225e0e` adds `GET /api/availability/next`. When the selected parent-local date has no bookable slot, the client asks for the next date. The server searches up to 30 days in that timezone. The page shows a loading state, an error state, or the next date. Choosing “Select this date” sets the booking date. It does not change the date until the parent uses that control. If nothing is free in the window, the page says so.
-
-### Secure booking access
-
-Commit `22fd934` separates view access from cancellation. The raw access token is returned on create and in the parent email, then stored only as a SHA-256 hash. The cancellation token is stored only as a bcrypt hash. `GET /api/bookings/:id` does not return the booking. Mentor mail includes class details and the join link, not the cancellation token or the `/b/:accessToken` secret. Mock confirmation logs redact the raw token and the view URL.
-
-### Demo classroom
-
-Commits `7289481` and `974b328` replace an external meeting URL with `/class/<booking-id>`. Ending the call returns the parent to the booking view or home. It does not cancel the class. Cancellation remains on the booking detail page and still requires the cancellation token.
-
-### Resend email
-
-Commit `ef7b0f8` sends parent confirmation, mentor notification, and cancellation mail through the email port. Production uses Resend when `RESEND_API_KEY` and `EMAIL_FROM` are set. Tests use the mock sender. Mail runs after the booking or cancellation has been saved. A send failure is logged and does not roll back the database write. The API key is read from the environment and is not in the repository. The documented sender is `CodeYoung Trial Booking <bookings@dandeliinn.com>`.
-
-### Landing page
-
-The public home page and `hero-study.webp` are in commit `2055eb0`. There is no `cygirlstudying` asset in the repository. The optimized WebP is the file the landing page imports.
-
----
-
-## 17. Major Engineering Decisions
-
-| Area | Decision | Reason |
-| --- | --- | --- |
-| Architecture | Clean Architecture and Feature-Sliced Design | Keep booking rules out of Express, Prisma, and page components |
-| Database | PostgreSQL and Prisma | Relational transactions and constraints for one booking at a time |
-| Timezone | Luxon and IANA zones | Daylight-saving time and non-whole-hour offsets |
-| Persistence | UTC `timestamptz` plus a stored mentor-local date | One instant in the database; stable daily-cap dates |
-| Concurrency | Serializable transactions, a partial unique index, savepoints, and limited serialization retries | Stop two confirmed bookings for the same mentor and start time, and try another eligible mentor when one collides |
-| Cancellation | Bcrypt hash of a one-time token | The raw cancel secret is not stored |
-| Booking access | SHA-256 access token and a locked GET-by-id route | A booking id is not enough to read parent details |
-| Email | Resend after commit, behind an email port | Notify parent and mentor without coupling mail success to the booking transaction |
-| Frontend | React with Feature-Sliced Design | Organize booking, availability, and admin UI by feature without upward imports |
-| Scope | No HOLD status and no extra messaging infrastructure | Immediate confirm-or-reject matched the assignment; Redis, queues, and sockets were unnecessary |
-
----
-
-## 18. Testing & Verification Summary
-
-| Stage | Verification | Result |
-| --- | --- | --- |
-| Prompt 9 | Automated tests | 180 passed initially (8 files) |
-| Prompt 10 | Regression and integration tests | 182 passed |
-| Prompt 12 | Backend tests | 244 passed (17 files) |
-| Prompt 12 | Frontend tests | 61 passed |
-| Prompt 12 | Type checks, builds, oxlint, Prisma validate | Passed |
-| Prompt 13 | Final tests, builds, database, secrets, and Git review | Passed, with the known Windows Prisma generate `EPERM` |
-
-Prompt 9 concurrency tests simulated database errors. They were not full parallel live-database races. Later reviews added savepoint and serialization-retry coverage in the application and repository tests. That still does not replace an unbounded multi-client load test.
-
----
-
-## 19. Final Feature Summary
-
-### Parent Features
-
-A parent opens the landing page, books at `/book` in the browser timezone, sees a grouped 24-hour grid, and receives a confirmed booking or an unavailable response with alternate hours. Booking details reopen at `/b/:accessToken`. The parent can cancel before the start with the cancellation token and can open the demo classroom.
-
-### Mentor Features
-
-Ten seeded mentors are assigned automatically. Five work Shift 1 and five work overnight Shift 2, in India Standard Time. A mentor email reports the assignment, parent and student names, both time contexts, and the class link. It does not include cancellation or access secrets.
-
-### Admin Features
-
-`/admin` is a read-only view of confirmed and cancelled classes, upcoming classes, and mentor load, with explicit shift labels and separate UTC and mentor-local times. It has no login.
-
-### Booking and Availability
-
-Classes last one hour and must fit the shift. Lead time is two hours. A mentor may have at most two confirmed classes on a mentor-local calendar day. Cancelled bookings do not count and free the slot. Assignment prefers the least-loaded eligible mentor and continues to the next mentor if the confirmed-slot unique index rejects the first. Idempotent replays return the original booking. Availability is batched in memory. A fully booked day can search the next 30 parent-local days.
-
-### Security
-
-Raw cancellation and access tokens are not stored. GET by booking id does not return the booking. Secrets are not committed. Local `.env` files are gitignored.
-
-### Email
-
-Resend sends parent confirmation, mentor notification, and cancellation mail after the corresponding database write. Tests use a mock. Missing mail configuration does not undo the booking.
-
-### Timezone Handling
-
-Instants are stored in UTC. Luxon converts parent and mentor zones, including daylight-saving gaps and overlaps and India Standard Time. The interface shows parent and mentor times where the booking is displayed.
-
-### Testing
-
-Backend Vitest and frontend Node tests cover the rules listed in Prompts 9 through 13. The last recorded totals are 244 backend tests and 61 frontend tests, with passing type checks, builds, and oxlint.
-
-### Deployment
-
-The recorded public site is `https://codeyoung-trail-booking.vercel.app/`, with the API on Render, PostgreSQL on Neon, and email through Resend. Prompt 13 did not deploy a new release.
-
----
-
-## 20. Known Limitations
-
-- There are no user accounts and no parent or mentor login.
-- `/admin` is not authenticated.
-- There is no payment flow.
-- The classroom is an in-app demo. It is not a video provider.
-- There is no HOLD, MentorHold, or temporary reservation.
-- Lead time (2 hours), the daily cap (2 confirmed classes), and the 30-day next-date window are constants in code, not runtime configuration.
-- Production email requires Resend configuration. If it is missing, the booking still stands.
-- Nodemailer remains in the backend dependencies. Production sending uses Resend.
-- Idempotency rows are not deleted by a scheduled job.
-- If every eligible mentor is busy, the API returns a slot-unavailable response.
-- Prompt 9 did not prove concurrency with parallel clients against a live database.
-- `prisma generate` can fail on Windows with `EPERM` when the query engine file is locked.
-
----
-
-## 21. Final Submission Status
-
-Development was completed through Prompt 13 with the major functional, architectural, security, testing, documentation, and verification requirements implemented and reviewed.
-
-| Item | Status |
-| --- | --- |
-| Prompts 0–13 | Represented in this record |
-| Business rules | 1-hour trials, 10 mentors, two IST shifts, 2-hour lead, cap of 2 confirmed classes, no HOLD |
-| Architecture | Clean Architecture backend and Feature-Sliced Design frontend |
-| Last recorded tests | Backend 244 passed; frontend 61 passed |
-| Database | Migrations current; seed idempotent; confirmed-slot partial unique index present |
-| Secrets in Git | Not found in the tracked-file scan |
-| Final implementation commit | `2055eb0` on `feature/project-setup` |
-| Push and deploy during Prompt 13 | Not performed |
-| This transcript | Prepared after Prompt 13 and not included in commit `2055eb0` |
-
-The branch was one commit ahead of `origin/feature/project-setup` when Prompt 13 finished, and it was still ahead by that commit when this transcript was written. This file remains untracked until it is committed in a separate step.
+| Prisma validation | Passed |
+| Database migrations | Up to date |
+| Seed | Idempotent; 10 mentors (5 + 5) |
+| Tracked-file secret scan | No committed secrets |
+
+### Core Implemented Rules
+
+- One-hour trial classes.
+- Exactly 10 seeded mentors: 5 on Shift 1 (`09:00–21:00 IST`) and 5 on overnight Shift 2 (`21:00–09:00 IST`).
+- UTC/timestamptz storage with Luxon/IANA timezone calculations.
+- Two-hour minimum lead time.
+- Maximum two **CONFIRMED** classes per mentor-local calendar day.
+- Cancelled bookings release capacity and can be rebooked.
+- Idempotent booking and cancellation.
+- Transactional/concurrency-safe mentor assignment.
+- Secure booking access and cancellation credentials.
+- Parent and mentor email notifications.
+- Read-only admin dashboard.
+- In-app demo classroom.
+- No HOLD state.
+
+### Submission Scope Notes
+
+The product intentionally remains within the assignment scope: no user accounts, payments, or real video-conferencing system were added. The classroom is explicitly a demo flow, and the admin dashboard is read-only.
+
+### Final Git Record
+
+- **Implementation commit:** `2055eb0`
+- **Transcript commit:** `64da4b5`
+- **Branch:** `feature/project-setup`
+- **Repository:** `https://github.com/sayedshoaibahmed/codeyoung-trail-booking.git`
+- **Live frontend:** `https://codeyoung-trail-booking.vercel.app/`
+- **Live API:** `https://codeyoung-trail-booking.onrender.com`
