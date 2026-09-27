@@ -70,6 +70,7 @@ async function makeBooking(overrides: Partial<Booking> = {}): Promise<Booking> {
     meetingLink:           'https://meet.codeyoung.com/class/booking-uuid-1234',
     status:                BookingStatus.CONFIRMED,
     cancellationTokenHash: tokenHash,
+    accessTokenHash:       'access-hash',
     cancelledAt:           null,
     idempotencyKey:        'key-1',
     createdAt:             new Date(),
@@ -80,8 +81,9 @@ async function makeBooking(overrides: Partial<Booking> = {}): Promise<Booking> {
 
 function buildBookingRepo(booking: Booking | null): BookingRepository {
   return {
-    findById:          vi.fn().mockResolvedValue(booking),
-    findByIdForUpdate: vi.fn().mockResolvedValue(booking),
+    findById:              vi.fn().mockResolvedValue(booking),
+    findByAccessTokenHash: vi.fn().mockResolvedValue(null),
+    findByIdForUpdate:     vi.fn().mockResolvedValue(booking),
     create:            vi.fn(),
     cancel:            vi.fn().mockImplementation(async (id: string, cancelledAt: Date): Promise<Booking> => ({
       ...booking!,

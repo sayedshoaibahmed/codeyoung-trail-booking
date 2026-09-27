@@ -57,7 +57,17 @@ export function BookingDetailCard({ booking }: BookingDetailCardProps) {
             {startLabel} – {endLabel}
           </p>
           <p className="text-amber-700 text-xs mt-2 font-medium break-words">
-            Timezone: {booking.parentTimezone}
+            Parent local time ({booking.parentTimezone}): {startLabel} – {endLabel}
+          </p>
+          <p className="text-amber-800 font-medium mt-3 mb-1 uppercase tracking-wide text-xs">
+            Mentor India (IST) time
+          </p>
+          <p className="font-bold text-amber-900 text-base sm:text-lg break-words">
+            {formatBookingTime(booking.startTimeUtc, booking.mentorTimezone)} –{' '}
+            {formatBookingTime(booking.endTimeUtc, booking.mentorTimezone)}
+          </p>
+          <p className="text-amber-700 text-xs mt-2 font-medium break-words">
+            Timezone: {booking.mentorTimezone}
           </p>
         </div>
 

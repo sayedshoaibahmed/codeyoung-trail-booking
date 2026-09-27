@@ -94,7 +94,7 @@ export function BookingFormWidget() {
     });
 
     if (outcome.ok === true) {
-      navigate(`/confirmation/${outcome.booking.bookingId}`, {
+      navigate(`/b/${outcome.booking.accessToken}`, {
         state: { cancellationToken: outcome.booking.cancellationToken },
       });
       return;

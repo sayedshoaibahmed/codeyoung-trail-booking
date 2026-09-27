@@ -1,9 +1,10 @@
 /**
  * Application use case — GetBooking
  *
- * Fetches a single booking by its primary key and returns a safe public DTO.
- * The cancellationTokenHash is NEVER included in the output.
+ * Maps a persisted booking to a DTO that never includes token hashes.
+ * HTTP must not expose this by booking id alone (see bookingRouter GET).
  */
+import type { Booking } from '../../domain/entities/Booking';
 import type { BookingRepository } from '../ports/BookingRepository';
 import type { MentorRepository }  from '../ports/MentorRepository';
 import { BookingStatus }          from '../../domain/entities/Booking';
@@ -30,6 +31,27 @@ export interface BookingDto {
   updatedAt: string;
 }
 
+export function toBookingDto(booking: Booking, mentorName: string): BookingDto {
+  return {
+    id:              booking.id,
+    parentName:      booking.parentName,
+    parentEmail:     booking.parentEmail,
+    childName:       booking.childName,
+    parentTimezone:  booking.parentTimezone,
+    startTimeUtc:    booking.startTimeUtc.toISOString(),
+    endTimeUtc:      booking.endTimeUtc.toISOString(),
+    mentorId:        booking.mentorId,
+    mentorName,
+    mentorTimezone:  booking.mentorTimezone,
+    mentorLocalDate: booking.mentorLocalDate,
+    meetingLink:     booking.meetingLink,
+    status:          booking.status === BookingStatus.CONFIRMED ? 'CONFIRMED' : 'CANCELLED',
+    cancelledAt:     booking.cancelledAt?.toISOString() ?? null,
+    createdAt:       booking.createdAt.toISOString(),
+    updatedAt:       booking.updatedAt.toISOString(),
+  };
+}
+
 // ── Use Case ──────────────────────────────────────────────────────────────────
 
 export class GetBookingUseCase {
@@ -43,24 +65,6 @@ export class GetBookingUseCase {
     if (!booking) throw new BookingNotFoundError(bookingId);
 
     const mentor = await this.mentorRepo.findById(booking.mentorId);
-
-    return {
-      id:              booking.id,
-      parentName:      booking.parentName,
-      parentEmail:     booking.parentEmail,
-      childName:       booking.childName,
-      parentTimezone:  booking.parentTimezone,
-      startTimeUtc:    booking.startTimeUtc.toISOString(),
-      endTimeUtc:      booking.endTimeUtc.toISOString(),
-      mentorId:        booking.mentorId,
-      mentorName:      mentor?.name ?? 'Unknown',
-      mentorTimezone:  booking.mentorTimezone,
-      mentorLocalDate: booking.mentorLocalDate,
-      meetingLink:     booking.meetingLink,
-      status:          booking.status === BookingStatus.CONFIRMED ? 'CONFIRMED' : 'CANCELLED',
-      cancelledAt:     booking.cancelledAt?.toISOString() ?? null,
-      createdAt:       booking.createdAt.toISOString(),
-      updatedAt:       booking.updatedAt.toISOString(),
-    };
+    return toBookingDto(booking, mentor?.name ?? 'Unknown');
   }
 }

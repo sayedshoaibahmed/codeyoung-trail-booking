@@ -12,6 +12,8 @@ export interface BookingConfirmationParams {
   mentorName: string;
   /** The raw (unhashed) cancellation token — delivered once, never stored. */
   rawCancellationToken: string;
+  /** Absolute or in-app URL for the parent to reopen booking details. */
+  viewBookingUrl: string;
 }
 
 export interface BookingCancellationParams {

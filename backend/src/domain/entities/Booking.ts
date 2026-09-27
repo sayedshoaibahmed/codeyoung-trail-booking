@@ -35,6 +35,11 @@ export interface Booking {
    * The raw token is never stored.
    */
   cancellationTokenHash: string;
+  /**
+   * SHA-256 hex digest of the raw booking-access token.
+   * The raw token is never stored and cannot be derived from the booking id.
+   */
+  accessTokenHash: string;
   cancelledAt: Date | null;
   /** Client-supplied idempotency key, unique per booking creation request */
   idempotencyKey: string;

@@ -39,6 +39,7 @@ export class PrismaBookingRepository implements BookingRepository {
         mentorLocalDate:      data.mentorLocalDate,
         meetingLink:          data.meetingLink,
         cancellationTokenHash: data.cancellationTokenHash,
+        accessTokenHash:      data.accessTokenHash,
         idempotencyKey:       data.idempotencyKey,
         status:               PrismaBookingStatus.CONFIRMED,
       },
@@ -48,6 +49,11 @@ export class PrismaBookingRepository implements BookingRepository {
 
   async findById(id: string): Promise<Booking | null> {
     const record = await this.db.booking.findUnique({ where: { id } });
+    return record ? toDomainBooking(record) : null;
+  }
+
+  async findByAccessTokenHash(accessTokenHash: string): Promise<Booking | null> {
+    const record = await this.db.booking.findUnique({ where: { accessTokenHash } });
     return record ? toDomainBooking(record) : null;
   }
 

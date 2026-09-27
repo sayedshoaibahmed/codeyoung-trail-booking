@@ -4,9 +4,10 @@
  * Route map:
  *   GET  /api/availability           — available 1-hour slots
  *   POST /api/bookings               — create booking (with Idempotency-Key)
- *   GET  /api/bookings/:id           — fetch booking
+ *   GET  /api/bookings/:id           — does not return private booking details
+ *   POST /api/booking-access         — fetch booking by access token (body)
  *   POST /api/bookings/:id/cancel    — cancel booking (with cancellationToken)
- *   GET  /api/classes/:id            — alias for GET /api/bookings/:id
+ *   GET  /api/classes/:id            — same privacy rule as GET /api/bookings/:id
  *   GET  /api/admin/dashboard        — admin read-only dashboard
  */
 import 'dotenv/config';
@@ -18,10 +19,12 @@ import {
   bookClassUseCase,
   cancelClassUseCase,
   getBookingUseCase,
+  getBookingByAccessUseCase,
   getAdminDashboardUseCase,
 } from './infrastructure';
 import { createAvailabilityRouter } from './interfaces/routes/availabilityRouter';
 import { createBookingRouter }      from './interfaces/routes/bookingRouter';
+import { createBookingAccessRouter } from './interfaces/routes/bookingAccessRouter';
 import { createClassesRouter }      from './interfaces/routes/classesRouter';
 import { createAdminRouter }        from './interfaces/routes/adminRouter';
 import { errorHandler }             from './interfaces/middleware/errorHandler';
@@ -90,6 +93,7 @@ app.get('/', (_req, res) => {
 // ── API routes ────────────────────────────────────────────────────────────
 const api = express.Router();
 api.use(createAvailabilityRouter(getAvailabilityUseCase));
+api.use('/booking-access', createBookingAccessRouter(getBookingByAccessUseCase));
 api.use('/bookings', createBookingRouter(bookClassUseCase, getBookingUseCase, cancelClassUseCase));
 api.use('/classes', createClassesRouter(getBookingUseCase));
 api.use('/admin', createAdminRouter(getAdminDashboardUseCase));

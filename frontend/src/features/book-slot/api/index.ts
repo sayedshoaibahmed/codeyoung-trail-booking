@@ -16,6 +16,7 @@ export interface BookSlotResponse {
   endUtc: string;
   meetingLink: string;
   cancellationToken: string;
+  accessToken: string;
   status: 'CONFIRMED';
 }
 

@@ -18,6 +18,7 @@ function sampleBooking(): Booking {
     meetingLink: '/class/550e8400-e29b-41d4-a716-446655440000',
     status: BookingStatus.CONFIRMED,
     cancellationTokenHash: 'hashed-secret-must-not-appear',
+    accessTokenHash: 'hashed-access-must-not-appear',
     cancelledAt: null,
     idempotencyKey: 'key-1',
     createdAt: new Date(),
@@ -32,6 +33,7 @@ describe('buildConfirmationEmailText', () => {
       booking,
       mentorName: 'Aisha Sharma',
       rawCancellationToken: 'raw-token-visible-once',
+      viewBookingUrl: '/b/raw-access-visible-once',
     });
 
     expect(text).toContain('Aarav Shah');
@@ -41,8 +43,10 @@ describe('buildConfirmationEmailText', () => {
     expect(text).toContain(booking.id);
     expect(text).toContain('Timezone:   Asia/Kolkata');
     expect(text).toContain('Join class: /class/550e8400-e29b-41d4-a716-446655440000');
+    expect(text).toContain('View Booking: /b/raw-access-visible-once');
     expect(text).toContain('raw-token-visible-once');
     expect(text).not.toContain('hashed-secret-must-not-appear');
+    expect(text).not.toContain('hashed-access-must-not-appear');
     expect(text).not.toContain('meet.codeyoung.com');
   });
 });

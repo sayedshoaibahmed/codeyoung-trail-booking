@@ -54,14 +54,19 @@ async function getTransport(): Promise<Transporter> {
 export class NodemailerEmailService implements EmailService {
   async sendBookingConfirmation(params: BookingConfirmationParams): Promise<void> {
     try {
-      const { booking, mentorName, rawCancellationToken } = params;
+      const { booking, mentorName, rawCancellationToken, viewBookingUrl } = params;
       const t = await getTransport();
 
       const info = await t.sendMail({
         from:    fromAddress,
         to:      booking.parentEmail,
         subject: '✅ Your CodeYoung trial class is confirmed!',
-        text: buildConfirmationEmailText({ booking, mentorName, rawCancellationToken }),
+        text: buildConfirmationEmailText({
+          booking,
+          mentorName,
+          rawCancellationToken,
+          viewBookingUrl,
+        }),
       });
 
       const previewUrl = nodemailer.getTestMessageUrl(info);

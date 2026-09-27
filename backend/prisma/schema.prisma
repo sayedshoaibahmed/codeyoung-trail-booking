@@ -108,6 +108,10 @@ model Booking {
   /// bcrypt hash of the raw cancellation token. Raw token is never stored.
   cancellationTokenHash String
 
+  /// SHA-256 hex of the raw booking-access token. Raw token is never stored.
+  /// Separate from cancellationTokenHash; used only to reopen booking details.
+  accessTokenHash String @unique
+
   cancelledAt          DateTime?     @db.Timestamptz
 
   /// Client-supplied idempotency key

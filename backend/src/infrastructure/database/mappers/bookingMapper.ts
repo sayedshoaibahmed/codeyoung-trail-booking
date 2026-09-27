@@ -34,6 +34,7 @@ export function toDomainBooking(prismaBooking: PrismaBooking): Booking {
     meetingLink: prismaBooking.meetingLink,
     status: toBookingStatus(prismaBooking.status),
     cancellationTokenHash: prismaBooking.cancellationTokenHash,
+    accessTokenHash: prismaBooking.accessTokenHash,
     cancelledAt: prismaBooking.cancelledAt,
     idempotencyKey: prismaBooking.idempotencyKey,
     createdAt: prismaBooking.createdAt,

@@ -17,12 +17,14 @@ import supertest from 'supertest';
 
 import { createAvailabilityRouter } from '../../interfaces/routes/availabilityRouter';
 import { createBookingRouter }      from '../../interfaces/routes/bookingRouter';
+import { createBookingAccessRouter } from '../../interfaces/routes/bookingAccessRouter';
 import { createClassesRouter }      from '../../interfaces/routes/classesRouter';
 import { createAdminRouter }        from '../../interfaces/routes/adminRouter';
 import { errorHandler }             from '../../interfaces/middleware/errorHandler';
 
 import {
   BookingNotFoundError,
+  BookingLinkInvalidError,
   LeadTimeViolationError,
   SlotNotAvailableError,
   InvalidTimezoneError,
@@ -56,6 +58,7 @@ const BOOKING_SUCCESS_RESPONSE = {
   endUtc:            '2024-11-04T05:30:00.000Z',
   meetingLink:       'https://meet.codeyoung.com/class/test',
   cancellationToken: 'raw-token-abc',
+  accessToken:       'raw-access-abc',
   status:            'CONFIRMED',
 };
 
@@ -95,6 +98,9 @@ function buildTestApp() {
   const mockGetBooking = {
     execute: vi.fn().mockResolvedValue(BOOKING_DTO),
   };
+  const mockGetBookingByAccess = {
+    execute: vi.fn().mockResolvedValue(BOOKING_DTO),
+  };
   const mockCancelClass = {
     execute: vi.fn().mockResolvedValue({
       bookingId:        VALID_UUID,
@@ -120,6 +126,7 @@ function buildTestApp() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   api.use(createAvailabilityRouter(mockGetAvailability as any));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  api.use('/booking-access', createBookingAccessRouter(mockGetBookingByAccess as any));
   api.use('/bookings', createBookingRouter(mockBookClass as any, mockGetBooking as any, mockCancelClass as any));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   api.use('/classes', createClassesRouter(mockGetBooking as any));
@@ -130,7 +137,7 @@ function buildTestApp() {
 
   return {
     request: supertest(app),
-    mocks: { mockGetAvailability, mockBookClass, mockGetBooking, mockCancelClass },
+    mocks: { mockGetAvailability, mockBookClass, mockGetBooking, mockGetBookingByAccess, mockCancelClass },
   };
 }
 
@@ -353,19 +360,49 @@ describe('Item 25 — API validation errors', () => {
       expect(res.body.code).toBe('VALIDATION_ERROR');
     });
 
-    it('404 BOOKING_NOT_FOUND when booking does not exist', async () => {
+    it('404 BOOKING_LINK_INVALID without revealing whether the id exists', async () => {
       const { request, mocks } = buildTestApp();
-      mocks.mockGetBooking.execute.mockRejectedValueOnce(new BookingNotFoundError(VALID_UUID));
       const res = await request.get(`/api/bookings/${VALID_UUID}`);
       expect(res.status).toBe(404);
-      expect(res.body.code).toBe('BOOKING_NOT_FOUND');
+      expect(res.body.code).toBe('BOOKING_LINK_INVALID');
+      expect(res.body.message).toBe('Booking link is invalid or has expired.');
+      expect(JSON.stringify(res.body)).not.toContain(VALID_UUID);
+      expect(mocks.mockGetBooking.execute).not.toHaveBeenCalled();
     });
 
-    it('200 with booking object on valid UUID', async () => {
+    it('does not return private booking fields for a booking id alone', async () => {
       const { request } = buildTestApp();
       const res = await request.get(`/api/bookings/${VALID_UUID}`);
+      expect(res.status).toBe(404);
+      expect(res.body.parentName).toBeUndefined();
+      expect(res.body.parentEmail).toBeUndefined();
+      expect(res.body.childName).toBeUndefined();
+    });
+  });
+
+  describe('POST /api/booking-access', () => {
+    it('200 with the booking for a valid access credential', async () => {
+      const { request } = buildTestApp();
+      const res = await request.post('/api/booking-access').send({ accessToken: 'valid-access-token' });
       expect(res.status).toBe(200);
       expect(res.body.id).toBe(VALID_UUID);
+    });
+
+    it('404 BOOKING_LINK_INVALID for an invalid credential', async () => {
+      const { request, mocks } = buildTestApp();
+      mocks.mockGetBookingByAccess.execute.mockRejectedValueOnce(new BookingLinkInvalidError());
+      const res = await request.post('/api/booking-access').send({ accessToken: 'wrong-token' });
+      expect(res.status).toBe(404);
+      expect(res.body.code).toBe('BOOKING_LINK_INVALID');
+      expect(res.body.message).toBe('Booking link is invalid or has expired.');
+      expect(JSON.stringify(res.body)).not.toMatch(/Alice|alice@test.com|Bob/);
+    });
+
+    it('404 BOOKING_LINK_INVALID when the access token is missing', async () => {
+      const { request } = buildTestApp();
+      const res = await request.post('/api/booking-access').send({});
+      expect(res.status).toBe(404);
+      expect(res.body.code).toBe('BOOKING_LINK_INVALID');
     });
   });
 

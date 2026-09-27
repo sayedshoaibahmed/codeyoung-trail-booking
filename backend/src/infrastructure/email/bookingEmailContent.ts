@@ -12,8 +12,9 @@ export function buildConfirmationEmailText(params: {
   booking: Booking;
   mentorName: string;
   rawCancellationToken: string;
+  viewBookingUrl: string;
 }): string {
-  const { booking, mentorName, rawCancellationToken } = params;
+  const { booking, mentorName, rawCancellationToken, viewBookingUrl } = params;
   const tz = booking.parentTimezone;
   const dateLabel = formatInTz(booking.startTimeUtc, tz, {
     weekday: 'long',
@@ -39,6 +40,7 @@ export function buildConfirmationEmailText(params: {
     `Class time: ${startLabel} – ${endLabel}`,
     `Timezone:   ${tz}`,
     `Join class: ${booking.meetingLink}`,
+    `View Booking: ${viewBookingUrl}`,
     '',
     'To cancel this booking (before the class starts), use your cancellation token:',
     `  ${rawCancellationToken}`,

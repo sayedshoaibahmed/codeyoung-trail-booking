@@ -118,6 +118,7 @@ function makeBooking(
     meetingLink: `https://meet.codeyoung.com/class/${id}`,
     status: BookingStatus.CONFIRMED,
     cancellationTokenHash: 'hash',
+    accessTokenHash: 'access-hash',
     cancelledAt: null,
     idempotencyKey: 'key-1',
     createdAt: new Date(),
@@ -155,8 +156,9 @@ function buildIdempotencyStore(existing: IdempotencyRecord | null = null): Idemp
 function buildBookingRepo(booking: Booking): BookingRepository {
   return {
     create:            vi.fn().mockResolvedValue(booking),
-    findById:          vi.fn().mockResolvedValue(null),
-    findByIdForUpdate: vi.fn().mockResolvedValue(booking),
+    findById:              vi.fn().mockResolvedValue(null),
+    findByAccessTokenHash: vi.fn().mockResolvedValue(null),
+    findByIdForUpdate:     vi.fn().mockResolvedValue(booking),
     cancel: vi.fn().mockImplementation(async (id: string, cancelledAt: Date): Promise<Booking> => ({
       ...booking,
       status: BookingStatus.CANCELLED,
@@ -262,6 +264,7 @@ async function buildCancelUcAndBooking(bookingOverrides: Partial<Booking> = {}) 
     meetingLink:           'https://meet.codeyoung.com/class/cancel-b1',
     status:                BookingStatus.CONFIRMED,
     cancellationTokenHash: tokenHash,
+    accessTokenHash:       'access-hash-cancel',
     cancelledAt:           null,
     idempotencyKey:        'cancel-key-1',
     createdAt:             new Date(),
@@ -270,8 +273,9 @@ async function buildCancelUcAndBooking(bookingOverrides: Partial<Booking> = {}) 
   };
 
   const bookingRepo: BookingRepository = {
-    findById:          vi.fn().mockResolvedValue(booking),
-    findByIdForUpdate: vi.fn().mockResolvedValue(booking),
+    findById:              vi.fn().mockResolvedValue(booking),
+    findByAccessTokenHash: vi.fn().mockResolvedValue(null),
+    findByIdForUpdate:     vi.fn().mockResolvedValue(booking),
     create:            vi.fn(),
     cancel: vi.fn().mockImplementation(async (id: string, cancelledAt: Date): Promise<Booking> => ({
       ...booking,
@@ -520,6 +524,7 @@ describe('Item 6 — exact 1-hour slot duration', () => {
     const bookingRepo: BookingRepository = {
       create:            createSpy,
       findById:          vi.fn(),
+      findByAccessTokenHash: vi.fn(),
       findByIdForUpdate: vi.fn(),
       cancel:            vi.fn(),
       findAll:           vi.fn().mockResolvedValue([]),
@@ -842,6 +847,7 @@ describe('Item 17 — same idempotency key + same payload returns original resul
       endUtc:            SLOT_END_UTC.toISOString(),
       meetingLink:       'https://meet.codeyoung.com/class/cached-id',
       cancellationToken: 'cached-token',
+      accessToken:       'cached-access',
       status:            'CONFIRMED',
     };
     const record: IdempotencyRecord = {
@@ -1000,6 +1006,7 @@ describe('Item 24 — email failure after booking commit does not surface to cal
 
     const bookingRepo: BookingRepository = {
       findById:          vi.fn().mockResolvedValue(b),
+      findByAccessTokenHash: vi.fn(),
       findByIdForUpdate: vi.fn().mockResolvedValue(b),
       create:            vi.fn(),
       cancel: vi.fn().mockImplementation(async (_id: string, cancelledAt: Date): Promise<Booking> => ({

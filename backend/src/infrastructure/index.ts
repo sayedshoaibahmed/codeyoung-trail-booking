@@ -17,6 +17,7 @@ import { GetAvailabilityUseCase }        from '../application/useCases/GetAvaila
 import { BookClassUseCase }              from '../application/useCases/BookClass';
 import { CancelClassUseCase }            from '../application/useCases/CancelClass';
 import { GetBookingUseCase }             from '../application/useCases/GetBooking';
+import { GetBookingByAccessUseCase }     from '../application/useCases/GetBookingByAccess';
 import { GetAdminDashboardUseCase }      from '../application/useCases/GetAdminDashboard';
 
 // ── Infrastructure singletons ─────────────────────────────────────────────
@@ -56,6 +57,11 @@ export const cancelClassUseCase = new CancelClassUseCase(
 );
 
 export const getBookingUseCase = new GetBookingUseCase(
+  bookingRepository,
+  mentorRepository,
+);
+
+export const getBookingByAccessUseCase = new GetBookingByAccessUseCase(
   bookingRepository,
   mentorRepository,
 );

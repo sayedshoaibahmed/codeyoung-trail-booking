@@ -86,6 +86,18 @@ export class BookingNotFoundError extends Error {
   }
 }
 
+/**
+ * Parent booking-access failed. Same message for missing, wrong, or
+ * format-invalid credentials so existence of a booking is not revealed.
+ */
+export class BookingLinkInvalidError extends Error {
+  readonly code = 'BOOKING_LINK_INVALID';
+  constructor() {
+    super('Booking link is invalid or has expired.');
+    this.name = 'BookingLinkInvalidError';
+  }
+}
+
 export class CancellationTokenInvalidError extends Error {
   readonly code = 'CANCELLATION_TOKEN_INVALID';
   constructor() {

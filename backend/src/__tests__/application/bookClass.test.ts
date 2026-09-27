@@ -76,6 +76,7 @@ function makeBooking(id: string, mentorId: string): Booking {
     meetingLink: `/class/${id}`,
     status: BookingStatus.CONFIRMED,
     cancellationTokenHash: 'hash',
+    accessTokenHash: 'access-hash',
     cancelledAt: null,
     idempotencyKey: 'key-1',
     createdAt: new Date(),
@@ -91,6 +92,7 @@ function makeResult(bookingId: string, mentorName: string): BookClassResult {
     endUtc: SLOT_END_UTC.toISOString(),
     meetingLink: `/class/${bookingId}`,
     cancellationToken: 'raw-token-abc',
+    accessToken: 'raw-access-abc',
     status: 'CONFIRMED',
   };
 }
@@ -138,10 +140,12 @@ function buildBookingRepo(booking: Booking): BookingRepository {
       mentorLocalDate:       data.mentorLocalDate,
       meetingLink:           data.meetingLink,
       cancellationTokenHash: data.cancellationTokenHash,
+      accessTokenHash:       data.accessTokenHash,
       idempotencyKey:        data.idempotencyKey,
     })),
-    findById:          vi.fn().mockResolvedValue(null),
-    findByIdForUpdate: vi.fn().mockResolvedValue(null),
+    findById:              vi.fn().mockResolvedValue(null),
+    findByAccessTokenHash: vi.fn().mockResolvedValue(null),
+    findByIdForUpdate:     vi.fn().mockResolvedValue(null),
     cancel:            vi.fn().mockResolvedValue(booking),
     findAll:           vi.fn().mockResolvedValue([]),
   };
@@ -210,16 +214,30 @@ describe('BookClassUseCase — happy path', () => {
     const previousOrigin = process.env.FRONTEND_ORIGIN;
     delete process.env.FRONTEND_ORIGIN;
     try {
-      const uc = new BookClassUseCase(uow, idemStore, buildTzService(), buildEmailService(), mentorRepo);
+      const email = buildEmailService();
+      const uc = new BookClassUseCase(uow, idemStore, buildTzService(), email, mentorRepo);
       const result = await uc.execute(BASE_DTO);
 
       expect(result.status).toBe('CONFIRMED');
       expect(result.bookingId).toBeDefined();
       expect(result.cancellationToken).toBeDefined();
       expect(result.cancellationToken.length).toBeGreaterThan(0);
+      expect(result.accessToken).toBeDefined();
+      expect(result.accessToken.length).toBeGreaterThan(0);
+      expect(result.accessToken).not.toBe(result.cancellationToken);
+      const createCall = (bookingRepo.create as MockedFunction<BookingRepository['create']>).mock.calls[0][0];
+      expect(createCall.accessTokenHash).not.toBe(result.accessToken);
+      expect(createCall.accessTokenHash).toMatch(/^[a-f0-9]{64}$/);
+      expect(createCall.cancellationTokenHash).not.toBe(result.cancellationToken);
       expect(result.meetingLink).toBe(`/class/${result.bookingId}`);
       expect(result.meetingLink).not.toContain('meet.codeyoung.com');
       expect(result.mentorName).toBe('Mentor mentor-a');
+      expect(email.sendBookingConfirmation).toHaveBeenCalled();
+      const mail = (email.sendBookingConfirmation as MockedFunction<EmailService['sendBookingConfirmation']>)
+        .mock.calls[0][0];
+      expect(mail.viewBookingUrl).toBe(`/b/${result.accessToken}`);
+      expect(mail.rawCancellationToken).toBe(result.cancellationToken);
+      expect(mail.viewBookingUrl).not.toContain(result.cancellationToken);
     } finally {
       if (previousOrigin === undefined) {
         delete process.env.FRONTEND_ORIGIN;
@@ -457,6 +475,7 @@ describe('BookClassUseCase — least-loaded mentor selection', () => {
     const bookingRepo: BookingRepository = {
       create:            createSpy,
       findById:          vi.fn(),
+      findByAccessTokenHash: vi.fn(),
       findByIdForUpdate: vi.fn(),
       cancel:            vi.fn(),
       findAll:           vi.fn(),

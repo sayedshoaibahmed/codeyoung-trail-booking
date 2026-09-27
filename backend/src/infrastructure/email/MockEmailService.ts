@@ -11,11 +11,20 @@ import { buildConfirmationEmailText } from './bookingEmailContent';
 export class MockEmailService implements EmailService {
   async sendBookingConfirmation(params: BookingConfirmationParams): Promise<void> {
     try {
-      const { booking, mentorName, rawCancellationToken } = params;
+      const { booking, mentorName, rawCancellationToken, viewBookingUrl } = params;
+      const text = buildConfirmationEmailText({
+        booking,
+        mentorName,
+        rawCancellationToken,
+        viewBookingUrl,
+      });
+      const redacted = text
+        .split(rawCancellationToken).join('[redacted]')
+        .split(viewBookingUrl).join('[view-booking-url-redacted]');
       console.log(
         `[mock-email] BOOKING CONFIRMATION\n` +
         `  To: ${booking.parentEmail}\n` +
-        buildConfirmationEmailText({ booking, mentorName, rawCancellationToken }) +
+        redacted +
         '\n',
       );
     } catch (err) {

@@ -6,4 +6,5 @@ export * from './useCases/GetAvailability';
 export * from './useCases/BookClass';
 export * from './useCases/CancelClass';
 export * from './useCases/GetBooking';
+export * from './useCases/GetBookingByAccess';
 export * from './useCases/GetAdminDashboard';

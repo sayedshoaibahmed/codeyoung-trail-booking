@@ -31,8 +31,11 @@ export function createClassesRouter(getBooking: GetBookingUseCase): Router {
         });
         return;
       }
-      const result = await getBooking.execute(parsed.data.id);
-      res.json(result);
+      void getBooking;
+      res.status(404).json({
+        code: 'BOOKING_LINK_INVALID',
+        message: 'Booking link is invalid or has expired.',
+      });
     } catch (err) {
       next(err);
     }

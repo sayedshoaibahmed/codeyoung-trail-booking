@@ -18,6 +18,7 @@ import {
   LeadTimeViolationError,
   SlotNotAvailableError,
   BookingNotFoundError,
+  BookingLinkInvalidError,
   CancellationTokenInvalidError,
   BookingAlreadyCancelledError,
   CancellationAfterStartError,
@@ -43,7 +44,7 @@ function toHttpStatus(err: Error): number {
   if (err instanceof CancellationTokenInvalidError) return 401;
 
   // 404 — resource not found
-  if (err instanceof BookingNotFoundError) return 404;
+  if (err instanceof BookingNotFoundError || err instanceof BookingLinkInvalidError) return 404;
 
   // 409 — business rule / state conflict
   if (

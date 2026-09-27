@@ -25,6 +25,7 @@
  */
 import { randomBytes, createHash, randomUUID } from 'crypto';
 import { hash as bcryptHash } from 'bcrypt';
+import { hashBookingAccessToken } from '../services/bookingAccessToken';
 import type { UnitOfWork } from '../ports/UnitOfWork';
 import type { IdempotencyStore } from '../ports/IdempotencyStore';
 import type { TimezoneService } from '../ports/TimezoneService';
@@ -53,6 +54,7 @@ const LEAD_TIME_MINUTES  = 2 * 60;               // 2 hours in minutes
 const MENTOR_DAILY_CAP   = 2;
 const BCRYPT_ROUNDS      = 10;
 const CANCELLATION_TOKEN_BYTES = 32;
+const ACCESS_TOKEN_BYTES = 32;
 
 // Shift 1: 09:00–21:00 IST
 const SHIFT_1_START_MIN = 9 * 60;   // 540
@@ -121,6 +123,11 @@ export interface BookClassResult {
    * Never stored. The parent must save this to cancel later.
    */
   cancellationToken: string;
+  /**
+   * Raw booking-access token — delivered once in this response and the email.
+   * Never stored. Distinct from cancellationToken.
+   */
+  accessToken: string;
   status: 'CONFIRMED';
 }
 
@@ -195,6 +202,12 @@ export class BookClassUseCase {
       : `/class/${bookingId}`;
     const rawToken   = randomBytes(CANCELLATION_TOKEN_BYTES).toString('hex');
     const tokenHash  = await bcryptHash(rawToken, BCRYPT_ROUNDS);
+    const rawAccessToken = randomBytes(ACCESS_TOKEN_BYTES).toString('hex');
+    const accessTokenHash = hashBookingAccessToken(rawAccessToken);
+    const viewBookingPath = `/b/${rawAccessToken}`;
+    const viewBookingUrl = frontendOrigin
+      ? `${frontendOrigin}${viewBookingPath}`
+      : viewBookingPath;
 
     // ── 10. Atomic transaction (SERIALIZABLE) ─────────────────────────────────
     type TxResult =
@@ -235,6 +248,7 @@ export class BookClassUseCase {
           mentorLocalDate,
           meetingLink,
           cancellationTokenHash: tokenHash,
+          accessTokenHash,
           idempotencyKey:       dto.idempotencyKey,
         });
 
@@ -246,6 +260,7 @@ export class BookClassUseCase {
           endUtc:            booking.endTimeUtc.toISOString(),
           meetingLink:       booking.meetingLink,
           cancellationToken: rawToken,
+          accessToken:       rawAccessToken,
           status:            'CONFIRMED',
         };
 
@@ -296,6 +311,7 @@ export class BookClassUseCase {
         booking:              txResult.bookingObj,
         mentorName:           txResult.mentorName,
         rawCancellationToken: rawToken,
+        viewBookingUrl,
       })
       .catch((e: unknown) =>
         console.error('[email] Failed to send booking confirmation:', e),

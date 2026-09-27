@@ -41,6 +41,8 @@ test('detail card shows mentor, parent, student, times, timezone, and status fro
   assert.match(card, /booking\.childName/);
   assert.match(card, /mentorFromBooking\(booking\)/);
   assert.match(card, /booking\.parentTimezone/);
+  assert.match(card, /booking\.mentorTimezone/);
+  assert.match(card, /Mentor India \(IST\) time/);
   assert.match(card, /booking\.status/);
   assert.match(card, /booking\.id/);
   assert.match(card, /formatBookingDate\(booking\.startTimeUtc/);

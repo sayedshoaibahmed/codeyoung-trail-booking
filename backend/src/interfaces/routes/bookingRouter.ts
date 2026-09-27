@@ -99,16 +99,16 @@ export function createBookingRouter(
   });
 
   // ── GET /api/bookings/:id ─────────────────────────────────────────────────
-  router.get('/:id', async (req, res, next) => {
-    try {
-      const parsed = BookingIdSchema.safeParse(req.params);
-      if (!parsed.success) { zodError(res, parsed.error); return; }
+  // Booking id alone must not disclose private parent/student details.
+  router.get('/:id', (req, res) => {
+    const parsed = BookingIdSchema.safeParse(req.params);
+    if (!parsed.success) { zodError(res, parsed.error); return; }
 
-      const result = await getBooking.execute(parsed.data.id);
-      res.json(result);
-    } catch (err) {
-      next(err);
-    }
+    void getBooking;
+    res.status(404).json({
+      code: 'BOOKING_LINK_INVALID',
+      message: 'Booking link is invalid or has expired.',
+    });
   });
 
   // ── POST /api/bookings/:id/cancel ─────────────────────────────────────────

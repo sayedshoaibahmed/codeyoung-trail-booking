@@ -20,6 +20,7 @@ export interface CreateBookingData {
   mentorLocalDate: string;
   meetingLink: string;
   cancellationTokenHash: string;
+  accessTokenHash: string;
   idempotencyKey: string;
 }
 
@@ -36,6 +37,9 @@ export interface BookingRepository {
 
   /** Fetches a booking by primary key. Returns null if not found. */
   findById(id: string): Promise<Booking | null>;
+
+  /** Fetches a booking by SHA-256 access-token digest. Returns null if not found. */
+  findByAccessTokenHash(accessTokenHash: string): Promise<Booking | null>;
 
   /**
    * Fetches a booking by id and acquires a SELECT FOR UPDATE row lock.
