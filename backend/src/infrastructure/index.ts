@@ -11,8 +11,8 @@ import { PrismaIdempotencyStore }         from './database/PrismaIdempotencyStor
 import { PrismaUnitOfWork }              from './database/PrismaUnitOfWork';
 import { PrismaAdminDashboardRepository } from './database/PrismaAdminDashboardRepository';
 import { LuxonTimezoneService }          from './timezone/LuxonTimezoneService';
-import { NodemailerEmailService }         from './email/NodemailerEmailService';
 import { MockEmailService }              from './email/MockEmailService';
+import { createEmailService }            from './email/createEmailService';
 import { GetAvailabilityUseCase }        from '../application/useCases/GetAvailability';
 import { GetNextAvailableDateUseCase }   from '../application/useCases/GetNextAvailableDate';
 import { BookClassUseCase }              from '../application/useCases/BookClass';
@@ -29,11 +29,11 @@ export const unitOfWork              = new PrismaUnitOfWork(prisma);
 export const adminDashboardRepository = new PrismaAdminDashboardRepository(prisma);
 export const timezoneService         = new LuxonTimezoneService();
 
-// Use Nodemailer/Ethereal in dev/prod; MockEmailService in tests.
+// Tests use the in-process mock. All other environments use Resend.
 export const emailService =
   process.env.NODE_ENV === 'test'
     ? new MockEmailService()
-    : new NodemailerEmailService();
+    : createEmailService();
 
 // ── Application use cases ─────────────────────────────────────────────────
 export const getAvailabilityUseCase = new GetAvailabilityUseCase(

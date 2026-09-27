@@ -5,8 +5,13 @@
  * Logs emails to the console instead of delivering them.
  * Never throws — swallows all errors to satisfy the fire-and-forget contract.
  */
-import type { EmailService, BookingConfirmationParams, BookingCancellationParams } from '../../application/ports/EmailService';
-import { buildConfirmationEmailText } from './bookingEmailContent';
+import type {
+  EmailService,
+  BookingConfirmationParams,
+  BookingCancellationParams,
+  MentorBookingNotificationParams,
+} from '../../application/ports/EmailService';
+import { buildConfirmationEmailText, buildMentorBookingNotificationText } from './bookingEmailContent';
 
 export class MockEmailService implements EmailService {
   async sendBookingConfirmation(params: BookingConfirmationParams): Promise<void> {
@@ -43,6 +48,21 @@ export class MockEmailService implements EmailService {
       );
     } catch (err) {
       console.error('[mock-email] Cancellation email failed:', err);
+    }
+  }
+
+  async sendMentorBookingNotification(params: MentorBookingNotificationParams): Promise<void> {
+    try {
+      const { booking, mentorName, mentorEmail } = params;
+      const text = buildMentorBookingNotificationText({ booking, mentorName });
+      console.log(
+        `[mock-email] MENTOR BOOKING NOTIFICATION\n` +
+        `  To: ${mentorEmail}\n` +
+        text +
+        '\n',
+      );
+    } catch (err) {
+      console.error('[mock-email] Mentor notification email failed:', err);
     }
   }
 }

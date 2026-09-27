@@ -16,8 +16,13 @@
  */
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
-import type { EmailService, BookingConfirmationParams, BookingCancellationParams } from '../../application/ports/EmailService';
-import { buildConfirmationEmailText } from './bookingEmailContent';
+import type {
+  EmailService,
+  BookingConfirmationParams,
+  BookingCancellationParams,
+  MentorBookingNotificationParams,
+} from '../../application/ports/EmailService';
+import { buildConfirmationEmailText, buildMentorBookingNotificationText } from './bookingEmailContent';
 
 let transport: Transporter | null = null;
 let fromAddress = '"CodeYoung" <no-reply@codeyoung.com>';
@@ -101,6 +106,25 @@ export class NodemailerEmailService implements EmailService {
       if (previewUrl) console.log(`[email] Cancellation preview: ${previewUrl}`);
     } catch (err) {
       console.error('[email] Failed to send booking cancellation:', err);
+    }
+  }
+
+  async sendMentorBookingNotification(params: MentorBookingNotificationParams): Promise<void> {
+    try {
+      const { booking, mentorName, mentorEmail } = params;
+      const t = await getTransport();
+
+      const info = await t.sendMail({
+        from:    fromAddress,
+        to:      mentorEmail,
+        subject: 'New CodeYoung trial class assigned',
+        text: buildMentorBookingNotificationText({ booking, mentorName }),
+      });
+
+      const previewUrl = nodemailer.getTestMessageUrl(info);
+      if (previewUrl) console.log(`[email] Mentor notification preview: ${previewUrl}`);
+    } catch (err) {
+      console.error('[email] Failed to send mentor booking notification:', err);
     }
   }
 }

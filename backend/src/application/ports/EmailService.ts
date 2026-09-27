@@ -21,6 +21,12 @@ export interface BookingCancellationParams {
   mentorName: string;
 }
 
+export interface MentorBookingNotificationParams {
+  booking: Booking;
+  mentorName: string;
+  mentorEmail: string;
+}
+
 export interface EmailService {
   /**
    * Sends a booking confirmation email to the parent.
@@ -34,4 +40,10 @@ export interface EmailService {
    * Same fire-and-forget contract as sendBookingConfirmation.
    */
   sendBookingCancellation(params: BookingCancellationParams): Promise<void>;
+
+  /**
+   * Notifies the assigned mentor after a successful booking commit.
+   * Must not include cancellation tokens or other secrets.
+   */
+  sendMentorBookingNotification(params: MentorBookingNotificationParams): Promise<void>;
 }

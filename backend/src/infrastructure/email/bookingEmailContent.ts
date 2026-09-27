@@ -64,3 +64,50 @@ export function buildConfirmationEmailText(params: {
     'The CodeYoung Team',
   ].join('\n');
 }
+
+export function buildMentorBookingNotificationText(params: {
+  booking: Booking;
+  mentorName: string;
+}): string {
+  const { booking, mentorName } = params;
+  const parentTz = booking.parentTimezone;
+  const mentorTz = booking.mentorTimezone;
+  const dateOptions: Intl.DateTimeFormatOptions = {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  };
+  const timeOptions: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' };
+  const parentDate = formatInTz(booking.startTimeUtc, parentTz, dateOptions);
+  const parentStart = formatInTz(booking.startTimeUtc, parentTz, timeOptions);
+  const parentEnd = formatInTz(booking.endTimeUtc, parentTz, timeOptions);
+  const mentorDate = formatInTz(booking.startTimeUtc, mentorTz, dateOptions);
+  const mentorStart = formatInTz(booking.startTimeUtc, mentorTz, timeOptions);
+  const mentorEnd = formatInTz(booking.endTimeUtc, mentorTz, timeOptions);
+
+  return [
+    `Dear ${mentorName},`,
+    '',
+    'A new CodeYoung trial class has been assigned to you.',
+    '',
+    `Booking ID: ${booking.id}`,
+    `Parent:     ${booking.parentName}`,
+    `Student:    ${booking.childName}`,
+    `Mentor:     ${mentorName}`,
+    '',
+    'Parent local time:',
+    `  ${parentDate}`,
+    `  ${parentStart} – ${parentEnd}`,
+    `Timezone: ${parentTz}`,
+    '',
+    'Mentor time:',
+    `  ${mentorDate}`,
+    `  ${mentorStart} – ${mentorEnd}`,
+    `Timezone: ${mentorTz}`,
+    '',
+    `Join class: ${booking.meetingLink}`,
+    '',
+    'The CodeYoung Team',
+  ].join('\n');
+}

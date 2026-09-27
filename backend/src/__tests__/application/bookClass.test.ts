@@ -121,6 +121,7 @@ function buildEmailService(): EmailService {
   return {
     sendBookingConfirmation: vi.fn().mockResolvedValue(undefined),
     sendBookingCancellation: vi.fn().mockResolvedValue(undefined),
+    sendMentorBookingNotification: vi.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -238,6 +239,15 @@ describe('BookClassUseCase — happy path', () => {
       expect(mail.viewBookingUrl).toBe(`/b/${result.accessToken}`);
       expect(mail.rawCancellationToken).toBe(result.cancellationToken);
       expect(mail.viewBookingUrl).not.toContain(result.cancellationToken);
+      expect(email.sendMentorBookingNotification).toHaveBeenCalled();
+      const mentorMail = (
+        email.sendMentorBookingNotification as MockedFunction<EmailService['sendMentorBookingNotification']>
+      ).mock.calls[0][0];
+      expect(mentorMail.mentorEmail).toBe('mentor-a@codeyoung.com');
+      expect(mentorMail.mentorName).toBe('Mentor mentor-a');
+      expect(mentorMail.booking.id).toBe(result.bookingId);
+      expect(mentorMail).not.toHaveProperty('rawCancellationToken');
+      expect(JSON.stringify(mentorMail)).not.toContain(result.cancellationToken);
     } finally {
       if (previousOrigin === undefined) {
         delete process.env.FRONTEND_ORIGIN;
@@ -416,6 +426,7 @@ describe('BookClassUseCase — double booking (P2002)', () => {
     const uc = new BookClassUseCase(throwingUoW, idemStore, buildTzService(), email, mentorRepo);
     await expect(uc.execute(BASE_DTO)).rejects.toThrow(SlotNotAvailableError);
     expect(email.sendBookingConfirmation).not.toHaveBeenCalled();
+    expect(email.sendMentorBookingNotification).not.toHaveBeenCalled();
   });
 });
 
@@ -507,15 +518,75 @@ describe('BookClassUseCase — email failure', () => {
     const idemStore   = buildIdempotencyStore();
     const uow         = buildUoW(mentorRepo, bookingRepo, idemStore);
 
-    // Email service throws
     const failingEmail: EmailService = {
       sendBookingConfirmation: vi.fn().mockRejectedValue(new Error('SMTP failure')),
       sendBookingCancellation: vi.fn(),
+      sendMentorBookingNotification: vi.fn().mockResolvedValue(undefined),
     };
 
     const uc = new BookClassUseCase(uow, idemStore, buildTzService(), failingEmail, mentorRepo);
-    // Should NOT throw despite the email failure
     await expect(uc.execute(BASE_DTO)).resolves.toBeDefined();
+    expect(failingEmail.sendMentorBookingNotification).toHaveBeenCalled();
+  });
+
+  it('does NOT fail the booking when mentor notification throws', async () => {
+    const booking    = makeBooking('booking-1', 'mentor-a');
+    const mentorRepo = {
+      findEligibleMentors: vi.fn().mockResolvedValue([makeMentor('mentor-a')]),
+      findById: vi.fn(),
+      findAll:  vi.fn(),
+    } as unknown as MentorRepository;
+    const bookingRepo = buildBookingRepo(booking);
+    const idemStore   = buildIdempotencyStore();
+    const uow         = buildUoW(mentorRepo, bookingRepo, idemStore);
+
+    const failingEmail: EmailService = {
+      sendBookingConfirmation: vi.fn().mockResolvedValue(undefined),
+      sendBookingCancellation: vi.fn(),
+      sendMentorBookingNotification: vi.fn().mockRejectedValue(new Error('mentor SMTP failure')),
+    };
+
+    const uc = new BookClassUseCase(uow, idemStore, buildTzService(), failingEmail, mentorRepo);
+    await expect(uc.execute(BASE_DTO)).resolves.toBeDefined();
+    expect(failingEmail.sendBookingConfirmation).toHaveBeenCalled();
+  });
+
+  it('still attempts the other email when one send rejects', async () => {
+    const booking    = makeBooking('booking-1', 'mentor-a');
+    const mentorRepo = {
+      findEligibleMentors: vi.fn().mockResolvedValue([makeMentor('mentor-a')]),
+      findById: vi.fn(),
+      findAll:  vi.fn(),
+    } as unknown as MentorRepository;
+    const bookingRepo = buildBookingRepo(booking);
+    const idemStore   = buildIdempotencyStore();
+    const uow         = buildUoW(mentorRepo, bookingRepo, idemStore);
+
+    const parentFirst: EmailService = {
+      sendBookingConfirmation: vi.fn().mockRejectedValue(new Error('parent fail')),
+      sendBookingCancellation: vi.fn(),
+      sendMentorBookingNotification: vi.fn().mockResolvedValue(undefined),
+    };
+    await expect(
+      new BookClassUseCase(uow, idemStore, buildTzService(), parentFirst, mentorRepo).execute({
+        ...BASE_DTO,
+        idempotencyKey: 'email-isolation-parent',
+      }),
+    ).resolves.toBeDefined();
+    expect(parentFirst.sendMentorBookingNotification).toHaveBeenCalled();
+
+    const mentorFirst: EmailService = {
+      sendBookingConfirmation: vi.fn().mockResolvedValue(undefined),
+      sendBookingCancellation: vi.fn(),
+      sendMentorBookingNotification: vi.fn().mockRejectedValue(new Error('mentor fail')),
+    };
+    await expect(
+      new BookClassUseCase(uow, idemStore, buildTzService(), mentorFirst, mentorRepo).execute({
+        ...BASE_DTO,
+        idempotencyKey: 'email-isolation-mentor',
+      }),
+    ).resolves.toBeDefined();
+    expect(mentorFirst.sendBookingConfirmation).toHaveBeenCalled();
   });
 });
 

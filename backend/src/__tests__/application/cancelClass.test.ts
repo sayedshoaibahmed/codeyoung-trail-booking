@@ -51,6 +51,7 @@ function buildEmailService(): EmailService {
   return {
     sendBookingConfirmation: vi.fn().mockResolvedValue(undefined),
     sendBookingCancellation: vi.fn().mockResolvedValue(undefined),
+    sendMentorBookingNotification: vi.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -248,6 +249,7 @@ describe('CancelClassUseCase — email failure', () => {
     const failingEmail: EmailService = {
       sendBookingConfirmation: vi.fn(),
       sendBookingCancellation: vi.fn().mockRejectedValue(new Error('SMTP down')),
+      sendMentorBookingNotification: vi.fn(),
     };
 
     const uc = new CancelClassUseCase(uow, bookingRepo, buildMentorRepo(), buildTzService(), failingEmail);

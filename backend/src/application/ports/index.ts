@@ -10,7 +10,12 @@ export type { BookingRepository, CreateBookingData, ListBookingsFilter } from '.
 export type { IdempotencyStore, IdempotencyRecord, CreateIdempotencyData } from './IdempotencyStore';
 export type { TimezoneService, LocalTimeInfo } from './TimezoneService';
 export type { UnitOfWork, TransactionContext } from './UnitOfWork';
-export type { EmailService, BookingConfirmationParams, BookingCancellationParams } from './EmailService';
+export type {
+  EmailService,
+  BookingConfirmationParams,
+  BookingCancellationParams,
+  MentorBookingNotificationParams,
+} from './EmailService';
 export type {
   AdminDashboardRepository,
   AdminDashboardData,

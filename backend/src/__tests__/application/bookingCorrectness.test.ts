@@ -135,6 +135,7 @@ function buildEmailService(): EmailService {
   return {
     sendBookingConfirmation: vi.fn().mockResolvedValue(undefined),
     sendBookingCancellation: vi.fn().mockResolvedValue(undefined),
+    sendMentorBookingNotification: vi.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -991,6 +992,7 @@ describe('Item 24 — email failure after booking commit does not surface to cal
     const failingEmail: EmailService = {
       sendBookingConfirmation: vi.fn().mockRejectedValue(new Error('SMTP unreachable')),
       sendBookingCancellation: vi.fn(),
+      sendMentorBookingNotification: vi.fn().mockResolvedValue(undefined),
     };
     const uc     = buildBookClassUc({ email: failingEmail });
     const result = await uc.execute(BASE_DTO);
@@ -1025,6 +1027,7 @@ describe('Item 24 — email failure after booking commit does not surface to cal
     const failingEmail: EmailService = {
       sendBookingConfirmation: vi.fn(),
       sendBookingCancellation: vi.fn().mockRejectedValue(new Error('SMTP down')),
+      sendMentorBookingNotification: vi.fn(),
     };
     const uc = new CancelClassUseCase(
       uow,

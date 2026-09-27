@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { buildConfirmationEmailText } from '../../infrastructure/email/bookingEmailContent';
+import {
+  buildConfirmationEmailText,
+  buildMentorBookingNotificationText,
+} from '../../infrastructure/email/bookingEmailContent';
 import { BookingStatus } from '../../domain';
 import type { Booking } from '../../domain';
 
@@ -93,5 +96,33 @@ describe('buildConfirmationEmailText', () => {
     expect(text).not.toContain('hashed-access-must-not-appear');
     expect(text).not.toContain('cancellationTokenHash');
     expect(text).not.toContain('accessTokenHash');
+  });
+});
+
+describe('buildMentorBookingNotificationText', () => {
+  it('includes booking details, timezones, and the join link without secrets', () => {
+    const booking = sampleBooking({
+      parentTimezone: 'America/New_York',
+      mentorTimezone: 'Asia/Kolkata',
+    });
+    const text = buildMentorBookingNotificationText({
+      booking,
+      mentorName: 'Aisha Sharma',
+    });
+
+    expect(text).toContain('Priya Shah');
+    expect(text).toContain('Aarav Shah');
+    expect(text).toContain('Aisha Sharma');
+    expect(text).toContain(booking.id);
+    expect(text).toContain('Timezone: America/New_York');
+    expect(text).toContain('Timezone: Asia/Kolkata');
+    expect(text).toMatch(/10:00\sAM/);
+    expect(text).toMatch(/8:30\sPM/);
+    expect(text).toContain('Join class: /class/550e8400-e29b-41d4-a716-446655440000');
+    expect(text).not.toContain('raw-token-visible-once');
+    expect(text).not.toContain('hashed-secret-must-not-appear');
+    expect(text).not.toContain('hashed-access-must-not-appear');
+    expect(text).not.toContain('/b/');
+    expect(text).not.toContain('cancellationToken');
   });
 });

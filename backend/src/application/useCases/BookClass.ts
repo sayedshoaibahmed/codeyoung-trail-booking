@@ -211,7 +211,13 @@ export class BookClassUseCase {
 
     // ── 10. Atomic transaction (SERIALIZABLE) ─────────────────────────────────
     type TxResult =
-      | { ok: true;  result: BookClassResult; mentorName: string; bookingObj: import('../../domain').Booking }
+      | {
+          ok: true;
+          result: BookClassResult;
+          mentorName: string;
+          mentorEmail: string;
+          bookingObj: import('../../domain').Booking;
+        }
       | { ok: false };
 
     let txResult: TxResult;
@@ -272,7 +278,13 @@ export class BookClassUseCase {
           bookingId:    booking.id,
         });
 
-        return { ok: true, result, mentorName: mentor.name, bookingObj: booking } as const;
+        return {
+          ok: true,
+          result,
+          mentorName: mentor.name,
+          mentorEmail: mentor.email,
+          bookingObj: booking,
+        } as const;
       });
     } catch (err: unknown) {
       // P2002 = unique constraint (partial index backstop or idempotency key collision)
@@ -304,8 +316,9 @@ export class BookClassUseCase {
       throw new SlotNotAvailableError(alternates);
     }
 
-    // ── 11. Fire-and-forget confirmation email (after commit) ─────────────────
-    // Failures are logged but must NOT surface to the caller.
+    // ── 11. Fire-and-forget emails (after commit) ─────────────────────────────
+    // Parent and mentor sends are independent. Failures are logged and must
+    // NOT surface to the caller or roll back the committed booking.
     void this.emailService
       .sendBookingConfirmation({
         booking:              txResult.bookingObj,
@@ -315,6 +328,16 @@ export class BookClassUseCase {
       })
       .catch((e: unknown) =>
         console.error('[email] Failed to send booking confirmation:', e),
+      );
+
+    void this.emailService
+      .sendMentorBookingNotification({
+        booking:     txResult.bookingObj,
+        mentorName:  txResult.mentorName,
+        mentorEmail: txResult.mentorEmail,
+      })
+      .catch((e: unknown) =>
+        console.error('[email] Failed to send mentor booking notification:', e),
       );
 
     return txResult.result;
