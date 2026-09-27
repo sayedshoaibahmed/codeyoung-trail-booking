@@ -128,7 +128,11 @@ export function BookingFormWidget() {
               <div className="flex flex-wrap gap-2">
                 {bookingError.alternateSlots.map((alt: any, i: number) => {
                   const t = new Intl.DateTimeFormat('en-US', {
-                    hour: 'numeric', minute: '2-digit', month: 'short', day: 'numeric'
+                    timeZone: timezone,
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    month: 'short',
+                    day: 'numeric',
                   }).format(new Date(alt.startUtc));
                   return <span key={i} className="text-xs px-2.5 py-1 bg-white border border-red-200 text-red-700 rounded-md font-medium">{t}</span>;
                 })}

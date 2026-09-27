@@ -2,15 +2,15 @@ import { useState, useRef } from 'react';
 import { bookSlotApi, type BookSlotRequest, type BookSlotResponse } from '../api';
 import { ApiError } from '../../../shared/api/base';
 
-export const SLOT_JUST_BOOKED_MESSAGE =
-  'This slot was just booked by another parent. Please choose another available time.';
+export const SLOT_NO_LONGER_AVAILABLE_MESSAGE =
+  'This time is no longer available. Please choose another slot.';
 
 export function isSlotConflictError(error: ApiError | null): boolean {
   return error?.code === 'SLOT_NOT_AVAILABLE';
 }
 
 export function bookingErrorDisplayMessage(error: ApiError): string {
-  if (isSlotConflictError(error)) return SLOT_JUST_BOOKED_MESSAGE;
+  if (isSlotConflictError(error)) return SLOT_NO_LONGER_AVAILABLE_MESSAGE;
   return error.message || 'An error occurred.';
 }
 
