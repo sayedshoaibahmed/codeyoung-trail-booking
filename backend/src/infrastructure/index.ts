@@ -14,6 +14,7 @@ import { LuxonTimezoneService }          from './timezone/LuxonTimezoneService';
 import { NodemailerEmailService }         from './email/NodemailerEmailService';
 import { MockEmailService }              from './email/MockEmailService';
 import { GetAvailabilityUseCase }        from '../application/useCases/GetAvailability';
+import { GetNextAvailableDateUseCase }   from '../application/useCases/GetNextAvailableDate';
 import { BookClassUseCase }              from '../application/useCases/BookClass';
 import { CancelClassUseCase }            from '../application/useCases/CancelClass';
 import { GetBookingUseCase }             from '../application/useCases/GetBooking';
@@ -37,6 +38,11 @@ export const emailService =
 // ── Application use cases ─────────────────────────────────────────────────
 export const getAvailabilityUseCase = new GetAvailabilityUseCase(
   mentorRepository,
+  timezoneService,
+);
+
+export const getNextAvailableDateUseCase = new GetNextAvailableDateUseCase(
+  getAvailabilityUseCase,
   timezoneService,
 );
 

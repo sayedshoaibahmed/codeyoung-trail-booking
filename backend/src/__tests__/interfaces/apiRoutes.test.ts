@@ -92,6 +92,14 @@ function buildTestApp() {
       date: '2024-11-04', timezone: 'Asia/Kolkata', slots: [],
     }),
   };
+  const mockGetNextAvailableDate = {
+    execute: vi.fn().mockResolvedValue({
+      date: '2024-11-04',
+      timezone: 'Asia/Kolkata',
+      searchDays: 30,
+      nextAvailableDate: '2024-11-06',
+    }),
+  };
   const mockBookClass = {
     execute: vi.fn().mockResolvedValue(BOOKING_SUCCESS_RESPONSE),
   };
@@ -124,7 +132,7 @@ function buildTestApp() {
 
   const api = express.Router();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  api.use(createAvailabilityRouter(mockGetAvailability as any));
+  api.use(createAvailabilityRouter(mockGetAvailability as any, mockGetNextAvailableDate as any));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   api.use('/booking-access', createBookingAccessRouter(mockGetBookingByAccess as any));
   api.use('/bookings', createBookingRouter(mockBookClass as any, mockGetBooking as any, mockCancelClass as any));
@@ -137,7 +145,7 @@ function buildTestApp() {
 
   return {
     request: supertest(app),
-    mocks: { mockGetAvailability, mockBookClass, mockGetBooking, mockGetBookingByAccess, mockCancelClass },
+    mocks: { mockGetAvailability, mockGetNextAvailableDate, mockBookClass, mockGetBooking, mockGetBookingByAccess, mockCancelClass },
   };
 }
 
@@ -340,6 +348,45 @@ describe('Item 25 — API validation errors', () => {
       const res = await request.get('/api/availability?date=2024-11-04&timezone=Asia/Kolkata');
       expect(res.status).toBe(200);
       expect(res.body.slots).toBeInstanceOf(Array);
+    });
+  });
+
+  describe('GET /api/availability/next', () => {
+    it('200 returns the next available date from the use case', async () => {
+      const { request, mocks } = buildTestApp();
+      const res = await request.get('/api/availability/next?date=2024-11-04&timezone=Asia/Kolkata');
+      expect(res.status).toBe(200);
+      expect(res.body.nextAvailableDate).toBe('2024-11-06');
+      expect(res.body.searchDays).toBe(30);
+      expect(mocks.mockGetNextAvailableDate.execute).toHaveBeenCalledWith({
+        date: '2024-11-04',
+        timezone: 'Asia/Kolkata',
+      });
+      expect(mocks.mockGetAvailability.execute).not.toHaveBeenCalled();
+    });
+
+    it('400 INVALID_DATE_FORMAT when date is missing', async () => {
+      const { request } = buildTestApp();
+      const res = await request.get('/api/availability/next?timezone=Asia/Kolkata');
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('INVALID_DATE_FORMAT');
+    });
+
+    it('400 INVALID_TIMEZONE when timezone is missing', async () => {
+      const { request } = buildTestApp();
+      const res = await request.get('/api/availability/next?date=2024-11-04');
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('INVALID_TIMEZONE');
+    });
+
+    it('400 INVALID_TIMEZONE when the use case rejects an unknown timezone', async () => {
+      const { request, mocks } = buildTestApp();
+      mocks.mockGetNextAvailableDate.execute.mockRejectedValueOnce(
+        new InvalidTimezoneError('America/Fake'),
+      );
+      const res = await request.get('/api/availability/next?date=2024-11-04&timezone=America/Fake');
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('INVALID_TIMEZONE');
     });
   });
 

@@ -16,6 +16,7 @@ import cors from 'cors';
 import {
   prisma,
   getAvailabilityUseCase,
+  getNextAvailableDateUseCase,
   bookClassUseCase,
   cancelClassUseCase,
   getBookingUseCase,
@@ -92,7 +93,7 @@ app.get('/', (_req, res) => {
 
 // ── API routes ────────────────────────────────────────────────────────────
 const api = express.Router();
-api.use(createAvailabilityRouter(getAvailabilityUseCase));
+api.use(createAvailabilityRouter(getAvailabilityUseCase, getNextAvailableDateUseCase));
 api.use('/booking-access', createBookingAccessRouter(getBookingByAccessUseCase));
 api.use('/bookings', createBookingRouter(bookClassUseCase, getBookingUseCase, cancelClassUseCase));
 api.use('/classes', createClassesRouter(getBookingUseCase));

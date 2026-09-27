@@ -6,8 +6,10 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../../../shared/ui/button';
 import { Input } from '../../../shared/ui/input';
 import { useAvailability } from '../../../features/view-availability/model/useAvailability';
+import { useNextAvailableDate } from '../../../features/view-availability/model/useNextAvailableDate';
 import { bookingErrorDisplayMessage, isSlotConflictError, useBookSlot } from '../../../features/book-slot/model/useBookSlot';
 import { GroupedSlotGrid } from '../../../features/view-availability/ui/GroupedSlotGrid';
+import { NextAvailableDateNotice } from '../../../features/view-availability/ui/NextAvailableDateNotice';
 import { SlotLegend } from '../../../entities/slot/ui/SlotLegend';
 import { isSlotSelectable } from '../../../entities/slot/lib/groupSlots';
 import { formatTimezoneLabel } from '../../../shared/lib/timezoneLabel';
@@ -37,7 +39,7 @@ export function BookingFormWidget() {
     [timezone],
   );
 
-  const { register, handleSubmit, formState: { errors }, watch } = useForm<FormValues>({
+  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       parentName: '',
@@ -50,6 +52,13 @@ export function BookingFormWidget() {
   const requestedDate = watch('requestedDate');
 
   const { slots, isLoading: isSlotsLoading, error: slotsError, refetch: refetchSlots } = useAvailability(requestedDate, timezone);
+  const hasBookableSlot = slots.some(isSlotSelectable);
+  const shouldFindNextDate = !isSlotsLoading && !slotsError && !hasBookableSlot;
+  const {
+    nextAvailableDate,
+    isLoading: isNextDateLoading,
+    error: nextDateError,
+  } = useNextAvailableDate(requestedDate, timezone, shouldFindNextDate);
 
   // A slot chosen for one date must not stay selected after the date changes,
   // or after a refetch marks that hour as no longer available.
@@ -203,13 +212,19 @@ export function BookingFormWidget() {
                 selectedSlotIso={selectedSlotIso}
                 onSelect={setSelectedSlotIso}
               />
-            ) : (
-              <div className="p-5 sm:p-8 border-2 border-dashed border-slate-200 rounded-xl text-center bg-slate-50">
-                <p className="text-slate-500 font-medium">No slots available for this date.</p>
-                <p className="text-slate-400 text-sm mt-1">Please try selecting another day.</p>
-              </div>
-            )}
+            ) : null}
           </div>
+          {!isSlotsLoading && !slotsError && !hasBookableSlot && (
+            <div className={slots.length > 0 ? 'mt-4' : undefined}>
+              <NextAvailableDateNotice
+                selectedDate={requestedDate}
+                nextAvailableDate={nextAvailableDate}
+                isLoading={isNextDateLoading}
+                error={nextDateError}
+                onViewSlots={(date) => setValue('requestedDate', date, { shouldDirty: true, shouldValidate: true })}
+              />
+            </div>
+          )}
           <div className="pt-4 mt-4 border-t border-slate-100">
             <p className="text-xs font-semibold text-slate-500 mb-1.5">Legend</p>
             <SlotLegend />
