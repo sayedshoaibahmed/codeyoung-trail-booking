@@ -8,6 +8,7 @@ import type { Booking } from '../model/types';
 import { MentorBadge, mentorFromBooking } from '../../mentor';
 import { classRoomPath } from '../../../shared/lib/classRoomPath';
 import { formatBookingDate, formatBookingTime } from '../lib/display';
+import { formatTimezoneLabel } from '../../../shared/lib/timezoneLabel';
 
 interface BookingDetailCardProps {
   booking: Booking;
@@ -16,8 +17,10 @@ interface BookingDetailCardProps {
 export function BookingDetailCard({ booking }: BookingDetailCardProps) {
   const mentor = mentorFromBooking(booking);
   const dateLabel = formatBookingDate(booking.startTimeUtc, booking.parentTimezone);
-  const startLabel = formatBookingTime(booking.startTimeUtc, booking.parentTimezone);
-  const endLabel = formatBookingTime(booking.endTimeUtc, booking.parentTimezone);
+  const parentStart = formatBookingTime(booking.startTimeUtc, booking.parentTimezone);
+  const parentEnd = formatBookingTime(booking.endTimeUtc, booking.parentTimezone);
+  const mentorStart = formatBookingTime(booking.startTimeUtc, booking.mentorTimezone);
+  const mentorEnd = formatBookingTime(booking.endTimeUtc, booking.mentorTimezone);
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -49,26 +52,29 @@ export function BookingDetailCard({ booking }: BookingDetailCardProps) {
           <p className="font-semibold text-slate-900 text-base break-words">{booking.childName}</p>
         </div>
 
-        <div className="sm:col-span-2 bg-amber-50 rounded-xl p-4 border border-amber-100">
-          <p className="text-amber-800 font-medium mb-1 uppercase tracking-wide text-xs">Class date</p>
-          <p className="font-bold text-amber-900 text-base sm:text-lg break-words">{dateLabel}</p>
-          <p className="text-amber-800 font-medium mt-3 mb-1 uppercase tracking-wide text-xs">Class time</p>
-          <p className="font-bold text-amber-900 text-base sm:text-lg break-words">
-            {startLabel} – {endLabel}
-          </p>
-          <p className="text-amber-700 text-xs mt-2 font-medium break-words">
-            Parent local time ({booking.parentTimezone}): {startLabel} – {endLabel}
-          </p>
-          <p className="text-amber-800 font-medium mt-3 mb-1 uppercase tracking-wide text-xs">
-            Mentor India (IST) time
-          </p>
-          <p className="font-bold text-amber-900 text-base sm:text-lg break-words">
-            {formatBookingTime(booking.startTimeUtc, booking.mentorTimezone)} –{' '}
-            {formatBookingTime(booking.endTimeUtc, booking.mentorTimezone)}
-          </p>
-          <p className="text-amber-700 text-xs mt-2 font-medium break-words">
-            Timezone: {booking.mentorTimezone}
-          </p>
+        <div className="sm:col-span-2 bg-amber-50 rounded-xl p-4 border border-amber-100 space-y-4">
+          <div>
+            <p className="text-amber-800 font-medium mb-1 uppercase tracking-wide text-xs">Class date</p>
+            <p className="font-bold text-amber-900 text-base sm:text-lg break-words">{dateLabel}</p>
+          </div>
+          <div>
+            <p className="text-amber-800 font-medium mb-1 uppercase tracking-wide text-xs">Your local time</p>
+            <p className="font-bold text-amber-900 text-base sm:text-lg break-words">
+              {parentStart} – {parentEnd}
+            </p>
+            <p className="text-amber-700 text-xs mt-1 font-medium break-words">
+              {formatTimezoneLabel(booking.parentTimezone)}
+            </p>
+          </div>
+          <div>
+            <p className="text-amber-800 font-medium mb-1 uppercase tracking-wide text-xs">Mentor time</p>
+            <p className="font-bold text-amber-900 text-base sm:text-lg break-words">
+              {mentorStart} – {mentorEnd}
+            </p>
+            <p className="text-amber-700 text-xs mt-1 font-medium break-words">
+              {formatTimezoneLabel(booking.mentorTimezone)}
+            </p>
+          </div>
         </div>
 
         <div className="sm:col-span-2">

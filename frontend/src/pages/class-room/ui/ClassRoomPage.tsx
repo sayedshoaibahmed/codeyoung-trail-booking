@@ -6,6 +6,7 @@ import { useParams, useLocation, Link } from 'react-router-dom';
 import { Button } from '../../../shared/ui/button';
 import { leaveClassPath, type ClassRoomNavState } from '../../../shared/lib/classRoomPath';
 import { formatBookingDate, formatBookingTime } from '../../../entities/booking/lib/display';
+import { formatTimezoneLabel } from '../../../shared/lib/timezoneLabel';
 
 export function ClassRoomPage() {
   const { id } = useParams<{ id: string }>();
@@ -48,12 +49,21 @@ export function ClassRoomPage() {
               <p className="text-slate-300"><span className="text-slate-500">Mentor</span> {summary.mentorName}</p>
               <p className="text-slate-300"><span className="text-slate-500">Status</span> {summary.status}</p>
               <p className="text-slate-300 break-words">
-                <span className="text-slate-500">Class</span>{' '}
-                {formatBookingDate(summary.startTimeUtc, summary.parentTimezone)},{' '}
+                <span className="text-slate-500">Class date</span>{' '}
+                {formatBookingDate(summary.startTimeUtc, summary.parentTimezone)}
+              </p>
+              <p className="text-slate-300 break-words">
+                <span className="text-slate-500">Your local time</span>{' '}
                 {formatBookingTime(summary.startTimeUtc, summary.parentTimezone)} –{' '}
                 {formatBookingTime(summary.endTimeUtc, summary.parentTimezone)}
               </p>
-              <p className="text-slate-400 text-xs break-words">Timezone: {summary.parentTimezone}</p>
+              <p className="text-slate-400 text-xs break-words">{formatTimezoneLabel(summary.parentTimezone)}</p>
+              <p className="text-slate-300 break-words">
+                <span className="text-slate-500">Mentor time</span>{' '}
+                {formatBookingTime(summary.startTimeUtc, summary.mentorTimezone)} –{' '}
+                {formatBookingTime(summary.endTimeUtc, summary.mentorTimezone)}
+              </p>
+              <p className="text-slate-400 text-xs break-words">{formatTimezoneLabel(summary.mentorTimezone)}</p>
             </div>
           )}
           <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-center">

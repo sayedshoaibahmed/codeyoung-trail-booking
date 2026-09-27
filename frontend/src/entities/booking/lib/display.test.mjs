@@ -42,12 +42,17 @@ test('detail card shows mentor, parent, student, times, timezone, and status fro
   assert.match(card, /mentorFromBooking\(booking\)/);
   assert.match(card, /booking\.parentTimezone/);
   assert.match(card, /booking\.mentorTimezone/);
-  assert.match(card, /Mentor India \(IST\) time/);
+  assert.match(card, /Your local time/);
+  assert.match(card, /Mentor time/);
+  assert.match(card, /formatTimezoneLabel\(booking\.parentTimezone\)/);
+  assert.match(card, /formatTimezoneLabel\(booking\.mentorTimezone\)/);
   assert.match(card, /booking\.status/);
   assert.match(card, /booking\.id/);
   assert.match(card, /formatBookingDate\(booking\.startTimeUtc/);
   assert.match(card, /formatBookingTime\(booking\.endTimeUtc/);
   assert.doesNotMatch(card, /meet\.codeyoung\.com/);
+  assert.doesNotMatch(card, /Asia\/Kolkata/);
+  assert.doesNotMatch(card, /Asia\/Calcutta/);
 });
 
 test('Join Class uses /class/<booking-id>', () => {
@@ -98,7 +103,9 @@ test('admin dashboard formats mentor clock with stored mentorTimezone, not the b
   assert.match(widget, /formatDateTime\(booking\.startTimeUtc\)/);
   assert.match(widget, /formatBookingTime\(booking\.startTimeUtc,\s*booking\.mentorTimezone\)/);
   assert.match(widget, /formatBookingTime\(booking\.endTimeUtc,\s*booking\.mentorTimezone\)/);
-  assert.match(widget, /Mentor time \(\{booking\.mentorTimezone\}\)/);
+  assert.match(widget, /Mentor time:/);
+  assert.match(widget, /formatTimezoneLabel\(booking\.mentorTimezone\)/);
+  assert.match(widget, /timezone:\s*booking\.mentorTimezone/);
   assert.doesNotMatch(widget, /resolvedOptions\(\)/);
   assert.doesNotMatch(widget, /formatBookingTime\(booking\.startTimeUtc\)\s*[),]/);
   assert.match(display, /timeZone:\s*timezone/);

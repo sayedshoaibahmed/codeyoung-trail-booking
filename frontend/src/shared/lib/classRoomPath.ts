@@ -14,6 +14,7 @@ export interface ClassRoomSummary {
   startTimeUtc: string;
   endTimeUtc: string;
   parentTimezone: string;
+  mentorTimezone: string;
 }
 
 /**
@@ -43,5 +44,6 @@ export function classSummaryFromBooking(booking: ClassRoomSummary): ClassRoomSum
     startTimeUtc: booking.startTimeUtc,
     endTimeUtc: booking.endTimeUtc,
     parentTimezone: booking.parentTimezone,
+    mentorTimezone: booking.mentorTimezone,
   };
 }

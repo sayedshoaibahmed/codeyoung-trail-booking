@@ -10,6 +10,7 @@ import { bookingErrorDisplayMessage, isSlotConflictError, useBookSlot } from '..
 import { GroupedSlotGrid } from '../../../features/view-availability/ui/GroupedSlotGrid';
 import { SlotLegend } from '../../../entities/slot/ui/SlotLegend';
 import { isSlotSelectable } from '../../../entities/slot/lib/groupSlots';
+import { formatTimezoneLabel } from '../../../shared/lib/timezoneLabel';
 
 const formSchema = z.object({
   parentName: z.string().trim().min(1, 'Parent Name is required'),
@@ -113,7 +114,7 @@ export function BookingFormWidget() {
         <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-teal-950">Book a Trial Class</h2>
         <div className="max-w-full text-sm font-medium text-slate-500 bg-slate-50 px-3 py-1.5 rounded-full inline-flex items-center border border-slate-100 min-w-0">
           <svg className="w-4 h-4 mr-1.5 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-          <span className="truncate">{timezone}</span>
+          <span className="truncate">{formatTimezoneLabel(timezone)}</span>
         </div>
       </div>
 

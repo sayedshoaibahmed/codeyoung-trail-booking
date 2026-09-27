@@ -3,6 +3,7 @@ import { useDashboard } from '../../../features/view-dashboard/model/useDashboar
 import { formatMentorShift, MentorBadge } from '../../../entities/mentor';
 import { classRoomPath } from '../../../shared/lib/classRoomPath';
 import { formatBookingTime } from '../../../entities/booking/lib/display';
+import { formatTimezoneLabel } from '../../../shared/lib/timezoneLabel';
 import type { DashboardBookingDto, MentorUtilizationDto } from '../../../features/view-dashboard/api';
 
 function formatDateTime(isoString: string): string {
@@ -33,19 +34,20 @@ function BookingCard({
       </div>
       <div className="text-sm text-slate-600 space-y-1.5 font-medium break-words">
         <p><strong className="text-slate-700">Time (UTC):</strong> {formatDateTime(booking.startTimeUtc)} (1 hr)</p>
-        <p><strong className="text-slate-700">Mentor time ({booking.mentorTimezone}):</strong>{' '}
+        <p><strong className="text-slate-700">Mentor time:</strong>{' '}
           {formatBookingTime(booking.startTimeUtc, booking.mentorTimezone)} –{' '}
           {formatBookingTime(booking.endTimeUtc, booking.mentorTimezone)}
         </p>
+        <p className="text-xs text-slate-500 font-medium">{formatTimezoneLabel(booking.mentorTimezone)}</p>
         <p><strong className="text-slate-700">Mentor local date:</strong> {booking.mentorLocalDate}</p>
         <div className="pt-3 pb-1">
           <MentorBadge
             mentor={{
               id: booking.mentorId,
               name: mentor?.mentorName ?? 'Unknown mentor',
-              timezone: 'Asia/Kolkata',
+              timezone: booking.mentorTimezone,
             }}
-            showTimezone={false}
+            showTimezone
           />
         </div>
         {booking.status === 'CONFIRMED' && (
