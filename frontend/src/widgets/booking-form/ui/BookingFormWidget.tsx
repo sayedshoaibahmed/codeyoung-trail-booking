@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../../../shared/ui/button';
 import { Input } from '../../../shared/ui/input';
 import { useAvailability } from '../../../features/view-availability/model/useAvailability';
-import { useBookSlot } from '../../../features/book-slot/model/useBookSlot';
+import { bookingErrorDisplayMessage, isSlotConflictError, useBookSlot } from '../../../features/book-slot/model/useBookSlot';
 import { GroupedSlotGrid } from '../../../features/view-availability/ui/GroupedSlotGrid';
 import { SlotLegend } from '../../../entities/slot/ui/SlotLegend';
 import { isSlotSelectable } from '../../../entities/slot/lib/groupSlots';
@@ -48,7 +48,7 @@ export function BookingFormWidget() {
 
   const requestedDate = watch('requestedDate');
 
-  const { slots, isLoading: isSlotsLoading, error: slotsError } = useAvailability(requestedDate, timezone);
+  const { slots, isLoading: isSlotsLoading, error: slotsError, refetch: refetchSlots } = useAvailability(requestedDate, timezone);
 
   // A slot chosen for one date must not stay selected after the date changes,
   // or after a refetch marks that hour as no longer available.
@@ -67,7 +67,7 @@ export function BookingFormWidget() {
   const { book, isSubmitting, error: bookingError } = useBookSlot();
 
   const onSubmit = async (data: FormValues) => {
-    if (!selectedSlotIso) return;
+    if (!selectedSlotIso || isSubmitting) return;
     
     // Requested start should be local time string without TZ suffix
     // selectedSlotIso is UTC, convert it to local
@@ -85,7 +85,7 @@ export function BookingFormWidget() {
     // sv-SE format is almost ISO: "YYYY-MM-DD hh:mm:ss"
     const localString = tzFormatter.format(dateObj).replace(' ', 'T');
 
-    const result = await book({
+    const outcome = await book({
       parentName: data.parentName,
       parentEmail: data.parentEmail,
       childName: data.childName,
@@ -93,11 +93,17 @@ export function BookingFormWidget() {
       requestedStartIso: localString,
     });
 
-    if (result) {
-      // Pass the cancellation token through state so it doesn't leak into URL
-      navigate(`/confirmation/${result.bookingId}`, { 
-        state: { cancellationToken: result.cancellationToken } 
+    if (outcome.ok === true) {
+      navigate(`/confirmation/${outcome.booking.bookingId}`, {
+        state: { cancellationToken: outcome.booking.cancellationToken },
       });
+      return;
+    }
+
+    const conflictError = outcome.error;
+    if (isSlotConflictError(conflictError)) {
+      setSelectedSlotIso(null);
+      refetchSlots();
     }
   };
 
@@ -114,7 +120,7 @@ export function BookingFormWidget() {
       {bookingError && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex flex-col items-start shadow-sm max-w-full">
           <p className="text-sm text-red-800 font-semibold break-words">
-            <span className="mr-2">⚠️</span> {bookingError.message}
+            <span className="mr-2">⚠️</span> {bookingErrorDisplayMessage(bookingError)}
           </p>
           {bookingError.alternateSlots && bookingError.alternateSlots.length > 0 && (
             <div className="mt-3 w-full">

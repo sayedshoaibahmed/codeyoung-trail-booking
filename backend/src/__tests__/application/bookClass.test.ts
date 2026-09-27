@@ -394,8 +394,10 @@ describe('BookClassUseCase — double booking (P2002)', () => {
     const idemStore = buildIdempotencyStore();
     const throwingUoW = buildThrowingUoW('P2002');
 
-    const uc = new BookClassUseCase(throwingUoW, idemStore, buildTzService(), buildEmailService(), mentorRepo);
+    const email = buildEmailService();
+    const uc = new BookClassUseCase(throwingUoW, idemStore, buildTzService(), email, mentorRepo);
     await expect(uc.execute(BASE_DTO)).rejects.toThrow(SlotNotAvailableError);
+    expect(email.sendBookingConfirmation).not.toHaveBeenCalled();
   });
 });
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { viewAvailabilityApi } from '../api';
 import type { AvailableSlot } from '../../../entities/slot/model/types';
 
@@ -6,6 +6,7 @@ export function useAvailability(date: string, timezone: string) {
   const [slots, setSlots] = useState<AvailableSlot[]>([]);
   const [isLoading, setIsLoading] = useState(Boolean(date && timezone));
   const [error, setError] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     if (!date || !timezone) return;
@@ -34,7 +35,9 @@ export function useAvailability(date: string, timezone: string) {
       });
 
     return () => { mounted = false; };
-  }, [date, timezone]);
+  }, [date, timezone, tick]);
 
-  return { slots, isLoading, error };
+  const refetch = useCallback(() => setTick((t) => t + 1), []);
+
+  return { slots, isLoading, error, refetch };
 }
