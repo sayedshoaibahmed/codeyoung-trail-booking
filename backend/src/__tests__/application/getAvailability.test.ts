@@ -92,16 +92,22 @@ describe('GetAvailabilityUseCase — lead time', () => {
 
     const result = await uc.execute({ date: '2024-11-04', timezone: 'Asia/Kolkata' });
 
-    // All returned slots should start at or after leadTimeCutoff (now + 2h = 08:00 UTC)
+    // Lead-time rule is unchanged: those hours are not bookable.
+    // They remain visible as `blocked` instead of being omitted.
     const cutoff = new Date('2024-11-04T08:00:00Z');
-    for (const slot of result.slots) {
-      expect(new Date(slot.startUtc).getTime()).toBeGreaterThanOrEqual(cutoff.getTime());
+    const early = result.slots.filter(
+      (s) => new Date(s.startUtc).getTime() < cutoff.getTime(),
+    );
+    expect(early.length).toBeGreaterThan(0);
+    for (const slot of early) {
+      expect(slot.status).toBe('blocked');
     }
 
-    // IST 09:00 and 10:00 slots (UTC 03:30, 04:30) must be absent
     const utcTimes = result.slots.map((s) => s.startUtc);
-    expect(utcTimes).not.toContain('2024-11-04T03:30:00.000Z');
-    expect(utcTimes).not.toContain('2024-11-04T04:30:00.000Z');
+    expect(utcTimes).toContain('2024-11-04T03:30:00.000Z');
+    expect(utcTimes).toContain('2024-11-04T04:30:00.000Z');
+    expect(result.slots.find((s) => s.startUtc === '2024-11-04T03:30:00.000Z')?.status).toBe('blocked');
+    expect(result.slots.find((s) => s.startUtc === '2024-11-04T04:30:00.000Z')?.status).toBe('blocked');
   });
 });
 
@@ -183,7 +189,7 @@ describe('GetAvailabilityUseCase — Shift 2 overnight slots', () => {
 // ── No eligible mentors ────────────────────────────────────────────────────────
 
 describe('GetAvailabilityUseCase — no eligible mentors', () => {
-  it('returns empty slots when no mentor is eligible', async () => {
+  it('marks in-day slots full when no mentor is eligible (does not hide them)', async () => {
     const now = '2024-11-01T00:00:00Z';
     const repo = buildMentorRepo({
       findEligibleMentors: vi.fn().mockResolvedValue([]),
@@ -191,7 +197,9 @@ describe('GetAvailabilityUseCase — no eligible mentors', () => {
     const uc = buildUseCase(repo, now);
 
     const result = await uc.execute({ date: '2024-11-04', timezone: 'Asia/Kolkata' });
-    expect(result.slots).toHaveLength(0);
+    expect(result.slots.length).toBe(24);
+    expect(result.slots.every((s) => s.status === 'full')).toBe(true);
+    expect(result.slots.some((s) => s.status === 'available')).toBe(false);
   });
 });
 
@@ -207,7 +215,8 @@ describe('GetAvailabilityUseCase — daily cap', () => {
     });
     const uc = buildUseCase(atCapRepo, now);
     const result = await uc.execute({ date: '2024-11-04', timezone: 'Asia/Kolkata' });
-    expect(result.slots).toHaveLength(0);
+    expect(result.slots.length).toBe(24);
+    expect(result.slots.every((s) => s.status === 'full')).toBe(true);
   });
 });
 
@@ -283,5 +292,49 @@ describe('GetAvailabilityUseCase — response shape', () => {
       expect(new Date(result.slots[i].startUtc).getTime())
         .toBeGreaterThan(new Date(result.slots[i - 1].startUtc).getTime());
     }
+  });
+});
+
+describe('GetAvailabilityUseCase — full-day presentation statuses', () => {
+  it('returns 24 unique IST-aligned hours for a future IST date', async () => {
+    const now = '2024-11-01T00:00:00Z';
+    const repo = buildMentorRepo();
+    const uc = buildUseCase(repo, now);
+    const result = await uc.execute({ date: '2024-11-04', timezone: 'Asia/Kolkata' });
+
+    expect(result.slots).toHaveLength(24);
+    const starts = result.slots.map((s) => s.startUtc);
+    expect(new Set(starts).size).toBe(24);
+    expect(result.slots.map((s) => s.startLocal)).toEqual([
+      '00:00', '01:00', '02:00', '03:00', '04:00', '05:00',
+      '06:00', '07:00', '08:00', '09:00', '10:00', '11:00',
+      '12:00', '13:00', '14:00', '15:00', '16:00', '17:00',
+      '18:00', '19:00', '20:00', '21:00', '22:00', '23:00',
+    ]);
+    expect(result.slots.every((s) => s.status === 'available')).toBe(true);
+  });
+
+  it('does not treat one occupied mentor as fully booked when another is eligible', async () => {
+    const now = '2024-11-01T00:00:00Z';
+    const repo = buildMentorRepo({
+      findEligibleMentors: vi.fn().mockResolvedValue([
+        makeMockMentor('mentor-still-free', MentorShiftType.SHIFT_1),
+      ]),
+    });
+    const uc = buildUseCase(repo, now);
+    const result = await uc.execute({ date: '2024-11-04', timezone: 'Asia/Kolkata' });
+    expect(result.slots.every((s) => s.status === 'available')).toBe(true);
+  });
+
+  it('does not query mentors for lead-time-blocked slots', async () => {
+    const now = '2024-11-04T06:00:00Z';
+    const findEligible = vi.fn().mockResolvedValue([makeMockMentor('m1', MentorShiftType.SHIFT_1)]);
+    const repo = buildMentorRepo({ findEligibleMentors: findEligible });
+    const uc = buildUseCase(repo, now);
+    const result = await uc.execute({ date: '2024-11-04', timezone: 'Asia/Kolkata' });
+
+    const blocked = result.slots.filter((s) => s.status === 'blocked');
+    expect(blocked.length).toBeGreaterThan(0);
+    expect(findEligible).toHaveBeenCalledTimes(result.slots.length - blocked.length);
   });
 });

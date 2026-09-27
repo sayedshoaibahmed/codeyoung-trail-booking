@@ -1,11 +1,15 @@
+export type SlotAvailabilityStatus = 'available' | 'full' | 'blocked';
+
 export interface AvailableSlot {
-  startUtc: string; // ISO 8601
-  endUtc: string; // ISO 8601
-  mentorId: string;
+  startUtc: string;
+  endUtc: string;
+  startLocal: string;
+  endLocal: string;
+  status: SlotAvailabilityStatus;
 }
 
 export interface AvailabilityResponse {
-  requestedDate: string;
-  parentTimezone: string;
+  date: string;
+  timezone: string;
   slots: AvailableSlot[];
 }

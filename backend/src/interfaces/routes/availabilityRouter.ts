@@ -5,7 +5,7 @@
  *   date     YYYY-MM-DD  — the calendar date in the parent's timezone
  *   timezone string      — IANA timezone identifier (e.g. America/New_York)
  *
- * Calls GetAvailabilityUseCase and returns available 1-hour slots.
+ * Calls GetAvailabilityUseCase and returns in-day 1-hour slots with status.
  */
 import { Router } from 'express';
 import type { GetAvailabilityUseCase } from '../../application/useCases/GetAvailability';

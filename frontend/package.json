@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "test": "node --test src/shared/lib/classRoomPath.test.mjs src/entities/booking/lib/display.test.mjs",
+    "test": "node --test src/shared/lib/classRoomPath.test.mjs src/entities/slot/lib/groupSlots.test.mjs src/entities/booking/lib/display.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

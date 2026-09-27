@@ -1,21 +1,27 @@
 /**
  * Application use case — GetAvailability
  *
- * Returns all available 1-hour slots for a given calendar date in the
- * parent's timezone. A slot is available when at least one mentor is eligible
- * (correct shift, no overlapping CONFIRMED booking, under the daily cap).
+ * Returns every IST-aligned 1-hour class interval whose start falls in the
+ * parent's local calendar day, each tagged with a presentation status.
  *
- * This use case orchestrates domain rules and ports — it has no knowledge of
- * Prisma, Luxon, Express, or any infrastructure detail.
+ * A slot is `available` when at least one mentor is eligible (correct shift,
+ * no overlapping CONFIRMED booking, under the daily cap) and the existing
+ * 2-hour lead time is met. Eligibility rules are unchanged; slots that fail
+ * them stay in the response so the UI can show a full day.
+ *
+ * status:
+ *  - available — lead time met and ≥ 1 eligible mentor
+ *  - full      — lead time met and 0 eligible mentors (no remaining capacity)
+ *  - blocked   — existing not-bookable rule (lead time not met)
  *
  * Algorithm:
  *  1. Validate the parent's timezone.
  *  2. Derive the UTC bounds of the requested date.
  *  3. Generate all IST-aligned 1-hour slots for both shifts across the IST
- *     dates that overlap with the parent's UTC day.
- *  4. Filter by: within the parent's day, meets lead time.
- *  5. For each remaining slot, query MentorRepository for eligible mentors.
- *     If ≥ 1 mentor is eligible, the slot is available.
+ *     dates that overlap the parent's day (including the previous IST date so
+ *     Shift 2 overnight hours that start in this parent day are included).
+ *  4. Keep slots whose start is within the parent's day.
+ *  5. Classify each slot; query MentorRepository only when lead time is met.
  */
 import type { MentorRepository } from '../ports/MentorRepository';
 import type { TimezoneService } from '../ports/TimezoneService';
@@ -54,6 +60,8 @@ export interface GetAvailabilityInput {
   timezone: string;
 }
 
+export type AvailabilitySlotStatus = 'available' | 'full' | 'blocked';
+
 export interface AvailabilitySlot {
   /** ISO 8601 UTC start of the slot */
   startUtc: string;
@@ -63,6 +71,8 @@ export interface AvailabilitySlot {
   startLocal: string;
   /** Slot end in the parent's local timezone (HH:mm) */
   endLocal: string;
+  /** Presentation status — does not change booking eligibility rules. */
+  status: AvailabilitySlotStatus;
 }
 
 export interface GetAvailabilityOutput {
@@ -100,6 +110,13 @@ function addOneCalendarDay(date: string): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** Subtracts one calendar day from a YYYY-MM-DD string without timezone math. */
+function subtractOneCalendarDay(date: string): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
 /** Returns all YYYY-MM-DD strings in [start, end] inclusive. */
 function dateRange(start: string, end: string): string[] {
   const dates: string[] = [];
@@ -131,17 +148,17 @@ export class GetAvailabilityUseCase {
     const dayEndUtc   = this.tzService.endOfDay(date, timezone);
 
     const now = this.tzService.now();
-    const leadTimeMs = LEAD_TIME_HOURS * 60 * 60_000;
 
     // 3. Determine which IST calendar dates to generate slots for.
-    //    We generate for every IST date that overlaps the parent's UTC day.
+    //    Include the previous IST date so Shift 2 (21:00 → 09:00 next day)
+    //    contributes early-morning hours that start in the parent-local day.
     const istStart = this.tzService.toLocal(dayStartUtc, MENTOR_TIMEZONE).date;
     // Use dayEndUtc - 1ms so we get the last IST date within the window.
     const istEnd   = this.tzService.toLocal(
       new Date(dayEndUtc.getTime() - 1),
       MENTOR_TIMEZONE,
     ).date;
-    const istDates = dateRange(istStart, istEnd);
+    const istDates = dateRange(subtractOneCalendarDay(istStart), istEnd);
 
     // 4. Generate all candidate 1-hour slots across both shifts for those IST dates.
     const candidates: CandidateSlot[] = [];
@@ -183,18 +200,27 @@ export class GetAvailabilityUseCase {
       (s) => s.startUtc >= dayStartUtc && s.startUtc < dayEndUtc,
     );
 
-    // 7. Filter: slot start must meet the lead time requirement
-    const withLeadTime = inDay.filter(
-      (s) => meetsLeadTime(s.startUtc, now, LEAD_TIME_HOURS * 60),
-    );
+    // 7. Classify each in-day slot. Lead-time failures are blocked without a
+    //    mentor query. Capacity/overlap failures are `full`, not omitted.
+    inDay.sort((a, b) => a.startUtc.getTime() - b.startUtc.getTime());
 
-    // Sort chronologically
-    withLeadTime.sort((a, b) => a.startUtc.getTime() - b.startUtc.getTime());
+    const slots: AvailabilitySlot[] = [];
 
-    // 8. For each slot, check if at least one mentor is eligible
-    const availableSlots: AvailabilitySlot[] = [];
+    for (const slot of inDay) {
+      const startLocal = this.tzService.toLocal(slot.startUtc, timezone).time;
+      const endLocal   = this.tzService.toLocal(slot.endUtc,   timezone).time;
+      const base = {
+        startUtc: slot.startUtc.toISOString(),
+        endUtc:   slot.endUtc.toISOString(),
+        startLocal,
+        endLocal,
+      };
 
-    for (const slot of withLeadTime) {
+      if (!meetsLeadTime(slot.startUtc, now, LEAD_TIME_HOURS * 60)) {
+        slots.push({ ...base, status: 'blocked' });
+        continue;
+      }
+
       const eligible = await this.mentorRepo.findEligibleMentors({
         shift: slot.shift,
         slotStartUtc: slot.startUtc,
@@ -203,18 +229,12 @@ export class GetAvailabilityUseCase {
         dailyCap: MENTOR_DAILY_CAP,
       });
 
-      if (eligible.length > 0) {
-        const startLocal = this.tzService.toLocal(slot.startUtc, timezone).time;
-        const endLocal   = this.tzService.toLocal(slot.endUtc,   timezone).time;
-        availableSlots.push({
-          startUtc:   slot.startUtc.toISOString(),
-          endUtc:     slot.endUtc.toISOString(),
-          startLocal,
-          endLocal,
-        });
-      }
+      slots.push({
+        ...base,
+        status: eligible.length > 0 ? 'available' : 'full',
+      });
     }
 
-    return { date, timezone, slots: availableSlots };
+    return { date, timezone, slots };
   }
 }
