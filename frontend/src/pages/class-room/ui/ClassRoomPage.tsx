@@ -2,19 +2,24 @@
  * Dummy classroom. End Call / Leave Class only navigate away.
  * They must not cancel the booking or touch cancellation credentials.
  */
-import { useParams, useLocation, Link } from 'react-router-dom';
+import { useEffect, useState, type ReactNode } from 'react';
+import { useParams, useLocation, useSearchParams, Link } from 'react-router-dom';
 import { Button } from '../../../shared/ui/button';
-import { leaveClassPath, type ClassRoomNavState } from '../../../shared/lib/classRoomPath';
+import { leaveClassPath, classSummaryFromBooking, type ClassRoomNavState, type ClassRoomSummary } from '../../../shared/lib/classRoomPath';
 import { formatBookingDate, formatBookingTime } from '../../../entities/booking/lib/display';
 import { formatTimezoneLabel } from '../../../shared/lib/timezoneLabel';
+import { bookingApi } from '../../../entities/booking/api';
+import { ApiError } from '../../../shared/api/base';
 
-export function ClassRoomPage() {
-  const { id } = useParams<{ id: string }>();
-  const location = useLocation();
-  const navState = (location.state ?? {}) as ClassRoomNavState;
-  const summary = navState.classSummary;
-  const exitTo = leaveClassPath(navState.accessToken);
+const SAFE_ACCESS_ERROR = 'Booking link is invalid or has expired.';
 
+function ClassroomShell({
+  children,
+  exitTo,
+}: {
+  children: ReactNode;
+  exitTo: string;
+}) {
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col font-sans overflow-x-hidden">
       <div className="bg-slate-950 border-b border-slate-800 p-4 flex flex-wrap justify-between items-center gap-x-3 gap-y-2 text-white">
@@ -28,8 +33,68 @@ export function ClassRoomPage() {
           Leave Class
         </Link>
       </div>
-
       <div className="flex-1 flex items-center justify-center p-4 sm:p-8">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export function ClassRoomPage() {
+  const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const navState = (location.state ?? {}) as ClassRoomNavState;
+  const accessFromQuery = searchParams.get('access') ?? undefined;
+  const accessToken = navState.accessToken ?? accessFromQuery;
+  const exitTo = leaveClassPath(accessToken);
+  const [summary, setSummary] = useState<ClassRoomSummary | undefined>(navState.classSummary);
+  const [isValidating, setIsValidating] = useState(Boolean(accessFromQuery) && !navState.classSummary);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (navState.classSummary || !accessFromQuery) return;
+
+    const controller = new AbortController();
+    setIsValidating(true);
+    setError(null);
+
+    bookingApi.getBookingByAccessToken(accessFromQuery, controller.signal)
+      .then((booking) => {
+        if (controller.signal.aborted) return;
+        if (id && booking.id !== id) {
+          setError(SAFE_ACCESS_ERROR);
+          setSummary(undefined);
+          return;
+        }
+        setSummary(classSummaryFromBooking(booking));
+      })
+      .catch((err) => {
+        if (controller.signal.aborted || (err instanceof Error && err.name === 'AbortError')) return;
+        const message = err instanceof ApiError ? err.message : SAFE_ACCESS_ERROR;
+        setError(message || SAFE_ACCESS_ERROR);
+        setSummary(undefined);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsValidating(false);
+      });
+
+    return () => { controller.abort(); };
+  }, [accessFromQuery, id, navState.classSummary]);
+
+  if (error) {
+    return (
+      <ClassroomShell exitTo={exitTo}>
+        <div className="text-center max-w-md">
+          <p className="text-red-300 mb-4 break-words">{error}</p>
+          <Link to="/book" className="text-amber-400 hover:underline text-sm">← Back to booking</Link>
+        </div>
+      </ClassroomShell>
+    );
+  }
+
+  return (
+    <ClassroomShell exitTo={exitTo}>
         <div className="max-w-3xl w-full bg-slate-800 rounded-2xl sm:rounded-3xl p-6 sm:p-12 text-center shadow-2xl border border-slate-700 relative overflow-hidden min-w-0">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-500 to-amber-500" />
           <div className="inline-flex p-5 bg-slate-700 rounded-full mb-6 border-4 border-slate-600">
@@ -38,11 +103,15 @@ export function ClassRoomPage() {
             </svg>
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-3">Demo Class Room</h2>
-          <p className="text-slate-400 mb-6 text-base sm:text-lg leading-relaxed max-w-xl mx-auto break-words">
-            This is the dummy classroom for booking{' '}
-            <strong className="text-slate-200 break-all">{id}</strong>.
-            No external video provider is used.
-          </p>
+          {isValidating ? (
+            <p className="text-slate-400 mb-6 text-base sm:text-lg" aria-busy="true">Connecting to your class…</p>
+          ) : (
+            <p className="text-slate-400 mb-6 text-base sm:text-lg leading-relaxed max-w-xl mx-auto break-words">
+              This is the dummy classroom for booking{' '}
+              <strong className="text-slate-200 break-all">{id}</strong>.
+              No external video provider is used.
+            </p>
+          )}
           {summary && (
             <div className="mb-8 text-left bg-slate-900/50 rounded-xl p-4 sm:p-5 border border-slate-700 text-sm space-y-2">
               <p className="text-slate-300"><span className="text-slate-500">Student</span> {summary.childName}</p>
@@ -83,7 +152,6 @@ export function ClassRoomPage() {
             Ending the call leaves the classroom. It does not cancel the booking.
           </p>
         </div>
-      </div>
-    </div>
+    </ClassroomShell>
   );
 }

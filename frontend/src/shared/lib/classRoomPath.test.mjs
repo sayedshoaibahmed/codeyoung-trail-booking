@@ -71,7 +71,7 @@ test('B/E — End Call only navigates; it does not set CANCELLED', () => {
 
 test('C — cancellation still requires the existing cancellation token', () => {
   const dialog = readFileSync(join(src, 'features/cancel-booking/ui/CancelBookingDialog.tsx'), 'utf8');
-  assert.match(dialog, /cancelBookingApi\.cancel\(bookingId, \{ cancellationToken: token \}\)/);
+  assert.match(dialog, /cancelBookingApi\.cancel\(bookingId, \{ cancellationToken \}\)/);
   assert.match(dialog, /Cancellation token is required/);
 });
 
@@ -95,6 +95,16 @@ test('F — no secret token appears in the classroom URL', () => {
 
   assert.equal(classRoomPath('abc'), '/class/abc');
   assert.doesNotMatch(classRoomPath('abc'), /cancel/i);
+});
+
+test('Join Class from booking details does not issue a second access request', () => {
+  const access = readFileSync(join(src, 'pages/booking-access/ui/BookingAccessPage.tsx'), 'utf8');
+  assert.match(access, /classSummaryFromBooking\(booking\)/);
+  const page = readFileSync(classroomPage, 'utf8');
+  assert.match(page, /navState.classSummary/);
+  assert.match(page, /Connecting to your class/);
+  assert.match(page, /getBookingByAccessToken/);
+  assert.match(page, /accessFromQuery/);
 });
 
 test('leaveClassPath returns booking-access or home, never cancel', () => {

@@ -4,7 +4,7 @@
  * Opened from the confirmation email View Booking link (/b/:accessToken).
  * Works on a cold load: only the path token and POST /booking-access.
  */
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useParams, useLocation, Link } from 'react-router-dom';
 import { useBookingAccess } from '../../../features/view-booking/model/useBookingAccess';
 import { CancelBookingDialog } from '../../../features/cancel-booking/ui/CancelBookingDialog';
@@ -12,6 +12,16 @@ import { BookingDetailCard } from '../../../entities/booking/ui/BookingDetailCar
 import { canOfferCancellation } from '../../../entities/booking/lib/display';
 import { Button } from '../../../shared/ui/button';
 import { classRoomPath, classSummaryFromBooking } from '../../../shared/lib/classRoomPath';
+
+function BookingAccessFrame({ children }: { children: ReactNode }) {
+  return (
+    <div className="min-h-screen bg-slate-50 py-8 sm:py-12 px-4 font-sans text-slate-900 overflow-x-hidden">
+      <div className="max-w-3xl mx-auto bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-slate-100 p-4 sm:p-8 lg:p-12 min-w-0">
+        {children}
+      </div>
+    </div>
+  );
+}
 
 export function BookingAccessPage() {
   const { accessToken } = useParams<{ accessToken: string }>();
@@ -23,9 +33,22 @@ export function BookingAccessPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <p className="text-gray-500 animate-pulse text-center">Loading booking details…</p>
-      </div>
+      <BookingAccessFrame>
+        <Link
+          to="/book"
+          className="inline-flex items-center text-sm font-semibold text-teal-800 hover:text-teal-950 mb-6"
+        >
+          ← Back to Booking
+        </Link>
+        <div aria-busy="true" aria-live="polite">
+          <div className="h-8 w-48 bg-slate-100 rounded-lg mb-4 animate-pulse" />
+          <p className="text-slate-500 font-medium mb-6">Loading booking details…</p>
+          <div className="space-y-3">
+            <div className="h-24 bg-slate-100 rounded-xl animate-pulse" />
+            <div className="h-24 bg-slate-100 rounded-xl animate-pulse" />
+          </div>
+        </div>
+      </BookingAccessFrame>
     );
   }
 
@@ -45,8 +68,7 @@ export function BookingAccessPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8 sm:py-12 px-4 font-sans text-slate-900 overflow-x-hidden">
-      <div className="max-w-3xl mx-auto bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-slate-100 p-4 sm:p-8 lg:p-12 min-w-0">
+    <BookingAccessFrame>
         <Link
           to="/book"
           className="inline-flex items-center text-sm font-semibold text-teal-800 hover:text-teal-950 mb-6"
@@ -90,7 +112,7 @@ export function BookingAccessPage() {
             <p className="text-amber-800 mb-3 font-medium">
               You will need this token to cancel the class. It is also in your confirmation email.
             </p>
-            <code className="bg-white px-4 py-2.5 rounded-md border border-amber-200 font-mono text-amber-900 block break-all select-all shadow-sm">
+            <code className="bg-white px-4 py-2.5 rounded-md border border-amber-200 font-mono text-amber-900 block whitespace-pre overflow-x-auto select-all shadow-sm">
               {cancellationToken}
             </code>
           </div>
@@ -128,7 +150,6 @@ export function BookingAccessPage() {
             </Link>
           )}
         </div>
-      </div>
 
       {showCancelDialog && (
         <CancelBookingDialog
@@ -140,6 +161,6 @@ export function BookingAccessPage() {
           }}
         />
       )}
-    </div>
+    </BookingAccessFrame>
   );
 }

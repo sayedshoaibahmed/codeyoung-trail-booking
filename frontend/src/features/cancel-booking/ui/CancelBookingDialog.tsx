@@ -3,20 +3,23 @@ import { cancelBookingApi } from '../api';
 import { ApiError } from '../../../shared/api/base';
 import { Button } from '../../../shared/ui/button';
 import { Input } from '../../../shared/ui/input';
+import { normalizeCancellationToken } from '../lib/normalizeCancellationToken';
 
 interface CancelBookingDialogProps {
   bookingId: string;
+  initialToken?: string;
   onSuccess: () => void;
   onClose: () => void;
 }
 
-export function CancelBookingDialog({ bookingId, onSuccess, onClose }: CancelBookingDialogProps) {
-  const [token, setToken] = useState('');
+export function CancelBookingDialog({ bookingId, initialToken = '', onSuccess, onClose }: CancelBookingDialogProps) {
+  const [token, setToken] = useState(initialToken);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleCancel = async () => {
-    if (!token) {
+    const cancellationToken = normalizeCancellationToken(token);
+    if (!cancellationToken) {
       setError('Cancellation token is required');
       return;
     }
@@ -24,7 +27,7 @@ export function CancelBookingDialog({ bookingId, onSuccess, onClose }: CancelBoo
     setIsSubmitting(true);
     setError(null);
     try {
-      await cancelBookingApi.cancel(bookingId, { cancellationToken: token });
+      await cancelBookingApi.cancel(bookingId, { cancellationToken });
       onSuccess();
     } catch (err: any) {
       if (err instanceof ApiError) {

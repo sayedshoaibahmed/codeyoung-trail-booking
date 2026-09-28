@@ -4,7 +4,7 @@
  * Loads a booking via POST /booking-access. The token comes from the route
  * path (email View Booking link). Does not persist credentials in the browser.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { bookingApi } from '../../../entities/booking/api';
 import { ApiError } from '../../../shared/api/base';
 import type { Booking } from '../../../entities/booking/model/types';
@@ -32,21 +32,21 @@ export function useBookingAccess(accessToken: string | undefined): UseBookingAcc
       return;
     }
 
-    let mounted = true;
+    const controller = new AbortController();
     setIsLoading(true);
     setError(null);
 
-    bookingApi.getBookingByAccessToken(accessToken)
-      .then((res) => { if (mounted) setBooking(res); })
+    bookingApi.getBookingByAccessToken(accessToken, controller.signal)
+      .then((res) => { if (!controller.signal.aborted) setBooking(res); })
       .catch((err) => {
-        if (!mounted) return;
+        if (controller.signal.aborted || (err instanceof Error && err.name === 'AbortError')) return;
         const message = err instanceof ApiError ? err.message : SAFE_ACCESS_ERROR;
         setError(message || SAFE_ACCESS_ERROR);
         setBooking(null);
       })
-      .finally(() => { if (mounted) setIsLoading(false); });
+      .finally(() => { if (!controller.signal.aborted) setIsLoading(false); });
 
-    return () => { mounted = false; };
+    return () => { controller.abort(); };
   }, [accessToken, tick]);
 
   const refetch = useCallback(() => setTick((t) => t + 1), []);

@@ -62,6 +62,8 @@ describe('ResendEmailService', () => {
       mentorName: 'Aisha Sharma',
       rawCancellationToken: TOKEN,
       viewBookingUrl: '/b/raw-access-visible-once',
+      cancelBookingUrl: '/cancel/550e8400-e29b-41d4-a716-446655440000?token=raw-token-visible-once',
+      joinClassUrl: '/class/550e8400-e29b-41d4-a716-446655440000?access=raw-access-visible-once',
     });
 
     expect(send).toHaveBeenCalledTimes(1);
@@ -76,10 +78,14 @@ describe('ResendEmailService', () => {
     expect(payload.text).toContain('550e8400-e29b-41d4-a716-446655440000');
     expect(payload.text).toContain('Timezone: Asia/Kolkata');
     expect(payload.text).toContain(
-      'Join class: https://codeyoung-trail-booking.vercel.app/class/550e8400-e29b-41d4-a716-446655440000',
+      'Join class: /class/550e8400-e29b-41d4-a716-446655440000?access=raw-access-visible-once',
     );
     expect(payload.text).toContain(TOKEN);
     expect(payload.text).toContain('View Booking: /b/raw-access-visible-once');
+    expect(payload.text).toContain('Cancel Booking:');
+    expect(payload.html).toContain('Cancel Booking');
+    expect(payload.html).toContain('href="/cancel/550e8400-e29b-41d4-a716-446655440000?token=raw-token-visible-once"');
+    expect(payload.html).toContain('white-space:pre');
     expect(payload.text).not.toContain('hashed-secret-must-not-appear');
     expect(payload.text).not.toContain('hashed-access-must-not-appear');
   });
@@ -96,10 +102,12 @@ describe('ResendEmailService', () => {
       mentorName: 'Aisha Sharma',
       rawCancellationToken: TOKEN,
       viewBookingUrl: '/b/raw-access-visible-once',
+      cancelBookingUrl: '/cancel/550e8400-e29b-41d4-a716-446655440000?token=raw-token-visible-once',
+      joinClassUrl: '/class/550e8400-e29b-41d4-a716-446655440000?access=raw-access-visible-once',
     });
 
     expect(send.mock.calls[0][0].text).toContain(
-      'Join class: https://codeyoung-trail-booking.vercel.app/class/abc',
+      'Join class: /class/550e8400-e29b-41d4-a716-446655440000?access=raw-access-visible-once',
     );
   });
 
@@ -111,6 +119,8 @@ describe('ResendEmailService', () => {
         mentorName: 'Aisha Sharma',
         rawCancellationToken: TOKEN,
       viewBookingUrl: '/b/raw-access-visible-once',
+      cancelBookingUrl: '/cancel/550e8400-e29b-41d4-a716-446655440000?token=raw-token-visible-once',
+      joinClassUrl: '/class/550e8400-e29b-41d4-a716-446655440000?access=raw-access-visible-once',
       }),
     ).resolves.toBeUndefined();
   });
@@ -124,6 +134,8 @@ describe('ResendEmailService', () => {
         mentorName: 'Aisha Sharma',
         rawCancellationToken: TOKEN,
       viewBookingUrl: '/b/raw-access-visible-once',
+      cancelBookingUrl: '/cancel/550e8400-e29b-41d4-a716-446655440000?token=raw-token-visible-once',
+      joinClassUrl: '/class/550e8400-e29b-41d4-a716-446655440000?access=raw-access-visible-once',
       }),
     ).resolves.toBeUndefined();
   });
@@ -137,6 +149,8 @@ describe('ResendEmailService', () => {
         mentorName: 'Aisha Sharma',
         rawCancellationToken: TOKEN,
       viewBookingUrl: '/b/raw-access-visible-once',
+      cancelBookingUrl: '/cancel/550e8400-e29b-41d4-a716-446655440000?token=raw-token-visible-once',
+      joinClassUrl: '/class/550e8400-e29b-41d4-a716-446655440000?access=raw-access-visible-once',
       }),
     ).resolves.toBeUndefined();
   });

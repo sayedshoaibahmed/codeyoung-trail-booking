@@ -209,6 +209,12 @@ export class BookClassUseCase {
     const viewBookingUrl = frontendOrigin
       ? `${frontendOrigin}${viewBookingPath}`
       : viewBookingPath;
+    const joinClassUrl = frontendOrigin
+      ? `${frontendOrigin}/class/${bookingId}?access=${rawAccessToken}`
+      : `/class/${bookingId}?access=${rawAccessToken}`;
+    const cancelBookingUrl = frontendOrigin
+      ? `${frontendOrigin}/cancel/${bookingId}?token=${rawToken}`
+      : `/cancel/${bookingId}?token=${rawToken}`;
 
     // ── 10. Atomic transaction (SERIALIZABLE) ─────────────────────────────────
     type TxResult =
@@ -347,6 +353,8 @@ export class BookClassUseCase {
         mentorName:           txResult.mentorName,
         rawCancellationToken: rawToken,
         viewBookingUrl,
+        cancelBookingUrl,
+        joinClassUrl,
       })
       .catch((e: unknown) =>
         console.error('[email] Failed to send booking confirmation:', e),

@@ -16,16 +16,19 @@ import { buildConfirmationEmailText, buildMentorBookingNotificationText } from '
 export class MockEmailService implements EmailService {
   async sendBookingConfirmation(params: BookingConfirmationParams): Promise<void> {
     try {
-      const { booking, mentorName, rawCancellationToken, viewBookingUrl } = params;
+      const { booking, mentorName, rawCancellationToken, viewBookingUrl, cancelBookingUrl, joinClassUrl } = params;
       const text = buildConfirmationEmailText({
         booking,
         mentorName,
         rawCancellationToken,
         viewBookingUrl,
+        cancelBookingUrl,
+        joinClassUrl,
       });
       const redacted = text
         .split(rawCancellationToken).join('[redacted]')
-        .split(viewBookingUrl).join('[view-booking-url-redacted]');
+        .split(viewBookingUrl).join('[view-booking-url-redacted]')
+        .split(cancelBookingUrl).join('[cancel-booking-url-redacted]');
       console.log(
         `[mock-email] BOOKING CONFIRMATION\n` +
         `  To: ${booking.parentEmail}\n` +

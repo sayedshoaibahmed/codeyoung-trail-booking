@@ -22,7 +22,11 @@ import type {
   BookingCancellationParams,
   MentorBookingNotificationParams,
 } from '../../application/ports/EmailService';
-import { buildConfirmationEmailText, buildMentorBookingNotificationText } from './bookingEmailContent';
+import {
+  buildConfirmationEmailHtml,
+  buildConfirmationEmailText,
+  buildMentorBookingNotificationText,
+} from './bookingEmailContent';
 
 let transport: Transporter | null = null;
 let fromAddress = '"CodeYoung" <no-reply@codeyoung.com>';
@@ -59,19 +63,23 @@ async function getTransport(): Promise<Transporter> {
 export class NodemailerEmailService implements EmailService {
   async sendBookingConfirmation(params: BookingConfirmationParams): Promise<void> {
     try {
-      const { booking, mentorName, rawCancellationToken, viewBookingUrl } = params;
+      const { booking, mentorName, rawCancellationToken, viewBookingUrl, cancelBookingUrl, joinClassUrl } = params;
       const t = await getTransport();
+      const content = {
+        booking,
+        mentorName,
+        rawCancellationToken,
+        viewBookingUrl,
+        cancelBookingUrl,
+        joinClassUrl,
+      };
 
       const info = await t.sendMail({
         from:    fromAddress,
         to:      booking.parentEmail,
         subject: '✅ Your CodeYoung trial class is confirmed!',
-        text: buildConfirmationEmailText({
-          booking,
-          mentorName,
-          rawCancellationToken,
-          viewBookingUrl,
-        }),
+        text: buildConfirmationEmailText(content),
+        html: buildConfirmationEmailHtml(content),
       });
 
       const previewUrl = nodemailer.getTestMessageUrl(info);

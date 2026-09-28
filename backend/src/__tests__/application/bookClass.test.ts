@@ -240,6 +240,9 @@ describe('BookClassUseCase — happy path', () => {
       expect(mail.viewBookingUrl).toBe(`/b/${result.accessToken}`);
       expect(mail.rawCancellationToken).toBe(result.cancellationToken);
       expect(mail.viewBookingUrl).not.toContain(result.cancellationToken);
+      expect(mail.cancelBookingUrl).toBe(`/cancel/${result.bookingId}?token=${result.cancellationToken}`);
+      expect(mail.joinClassUrl).toBe(`/class/${result.bookingId}?access=${result.accessToken}`);
+      expect(mail.joinClassUrl).not.toContain(result.cancellationToken);
       expect(email.sendMentorBookingNotification).toHaveBeenCalled();
       const mentorMail = (
         email.sendMentorBookingNotification as MockedFunction<EmailService['sendMentorBookingNotification']>

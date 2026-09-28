@@ -24,6 +24,7 @@ test('View Booking route opens details from the access token, not localStorage o
 
   const hook = readFileSync(join(here, 'useBookingAccess.ts'), 'utf8');
   assert.match(hook, /getBookingByAccessToken/);
+  assert.match(hook, /AbortController/);
   assert.match(hook, /Booking link is invalid or has expired/);
   assert.doesNotMatch(hook, /window\.localStorage/);
   assert.doesNotMatch(hook, /\/bookings\/\$\{/);
@@ -39,4 +40,11 @@ test('failed access shows a safe message and does not mention booking existence'
   const page = readFileSync(join(src, 'pages/booking-access/ui/BookingAccessPage.tsx'), 'utf8');
   assert.match(page, /Booking link is invalid or has expired/);
   assert.doesNotMatch(page, /was not found/);
+});
+
+test('View Booking paints a loading shell immediately', () => {
+  const page = readFileSync(join(src, 'pages/booking-access/ui/BookingAccessPage.tsx'), 'utf8');
+  assert.match(page, /Loading booking details/);
+  assert.match(page, /aria-busy/);
+  assert.match(page, /isLoading/);
 });

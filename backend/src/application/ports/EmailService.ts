@@ -14,6 +14,10 @@ export interface BookingConfirmationParams {
   rawCancellationToken: string;
   /** Absolute or in-app URL for the parent to reopen booking details. */
   viewBookingUrl: string;
+  /** Existing cancel flow: booking id + cancellation token. No extra secrets. */
+  cancelBookingUrl: string;
+  /** Join-class URL for the parent email. May include the access token as a query. */
+  joinClassUrl: string;
 }
 
 export interface BookingCancellationParams {

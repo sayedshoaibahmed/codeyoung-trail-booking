@@ -4,6 +4,7 @@ import { BookingPage } from '../pages/booking/ui/BookingPage';
 import { ConfirmationPage } from '../pages/confirmation/ui/ConfirmationPage';
 import { BookingAccessPage } from '../pages/booking-access/ui/BookingAccessPage';
 import { ClassRoomPage } from '../pages/class-room/ui/ClassRoomPage';
+import { CancelBookingLinkPage } from '../pages/cancel-booking-link/ui/CancelBookingLinkPage';
 import { AdminDashboardPage } from '../pages/admin-dashboard/ui/AdminDashboardPage';
 
 export function App() {
@@ -14,6 +15,7 @@ export function App() {
       <Route path="/b/:accessToken" element={<BookingAccessPage />} />
       <Route path="/confirmation/:id" element={<ConfirmationPage />} />
       <Route path="/class/:id" element={<ClassRoomPage />} />
+      <Route path="/cancel/:bookingId" element={<CancelBookingLinkPage />} />
       <Route path="/admin" element={<AdminDashboardPage />} />
     </Routes>
   );

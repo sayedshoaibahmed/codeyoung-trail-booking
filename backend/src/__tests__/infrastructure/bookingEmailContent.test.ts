@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  buildConfirmationEmailHtml,
   buildConfirmationEmailText,
   buildMentorBookingNotificationText,
 } from '../../infrastructure/email/bookingEmailContent';
@@ -30,13 +31,19 @@ function sampleBooking(overrides: Partial<Booking> = {}): Booking {
   };
 }
 
-function buildText(booking: Booking) {
-  return buildConfirmationEmailText({
+function emailParams(booking: Booking) {
+  return {
     booking,
     mentorName: 'Aisha Sharma',
     rawCancellationToken: 'raw-token-visible-once',
     viewBookingUrl: '/b/raw-access-visible-once',
-  });
+    cancelBookingUrl: '/cancel/550e8400-e29b-41d4-a716-446655440000?token=raw-token-visible-once',
+    joinClassUrl: '/class/550e8400-e29b-41d4-a716-446655440000?access=raw-access-visible-once',
+  };
+}
+
+function buildText(booking: Booking) {
+  return buildConfirmationEmailText(emailParams(booking));
 }
 
 describe('buildConfirmationEmailText', () => {
@@ -53,9 +60,11 @@ describe('buildConfirmationEmailText', () => {
     expect(text).toContain('Aisha Sharma');
     expect(text).toContain('CONFIRMED');
     expect(text).toContain(booking.id);
-    expect(text).toContain('Join class: /class/550e8400-e29b-41d4-a716-446655440000');
+    expect(text).toContain('Join class: /class/550e8400-e29b-41d4-a716-446655440000?access=raw-access-visible-once');
     expect(text).toContain('View Booking: /b/raw-access-visible-once');
+    expect(text).toContain('Cancel Booking: /cancel/550e8400-e29b-41d4-a716-446655440000?token=raw-token-visible-once');
     expect(text).toContain('raw-token-visible-once');
+    expect(text).not.toMatch(/ {2}raw-token-visible-once/);
     expect(text).not.toContain('hashed-secret-must-not-appear');
     expect(text).not.toContain('hashed-access-must-not-appear');
     expect(text).not.toContain('meet.codeyoung.com');
@@ -96,6 +105,19 @@ describe('buildConfirmationEmailText', () => {
     expect(text).not.toContain('hashed-access-must-not-appear');
     expect(text).not.toContain('cancellationTokenHash');
     expect(text).not.toContain('accessTokenHash');
+  });
+
+  it('HTML confirmation includes a clickable cancel action and a non-wrapping token fallback', () => {
+    const html = buildConfirmationEmailHtml(emailParams(sampleBooking()));
+    expect(html).toContain('href="/cancel/550e8400-e29b-41d4-a716-446655440000?token=raw-token-visible-once"');
+    expect(html).toContain('Cancel Booking');
+    expect(html).toContain('href="/b/raw-access-visible-once"');
+    expect(html).toContain('View Booking');
+    expect(html).toContain('href="/class/550e8400-e29b-41d4-a716-446655440000?access=raw-access-visible-once"');
+    expect(html).toContain('white-space:pre');
+    expect(html).toContain('raw-token-visible-once');
+    expect(html).not.toContain('hashed-secret-must-not-appear');
+    expect(html).not.toContain('hashed-access-must-not-appear');
   });
 });
 

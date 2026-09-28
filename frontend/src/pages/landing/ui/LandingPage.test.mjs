@@ -14,6 +14,7 @@ test('root route is the landing page and /book is the existing booking form', ()
   assert.match(app, /path=["']\/b\/:accessToken["']/);
   assert.match(app, /path=["']\/confirmation\/:id["']/);
   assert.match(app, /path=["']\/class\/:id["']/);
+  assert.match(app, /path=["']\/cancel\/:bookingId["']/);
   assert.match(app, /path=["']\/admin["']/);
 });
 

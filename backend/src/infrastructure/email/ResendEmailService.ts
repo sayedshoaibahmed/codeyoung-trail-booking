@@ -12,7 +12,11 @@ import type {
   BookingCancellationParams,
   MentorBookingNotificationParams,
 } from '../../application/ports/EmailService';
-import { buildConfirmationEmailText, buildMentorBookingNotificationText } from './bookingEmailContent';
+import {
+  buildConfirmationEmailHtml,
+  buildConfirmationEmailText,
+  buildMentorBookingNotificationText,
+} from './bookingEmailContent';
 
 export const BOOKING_CONFIRMATION_SUBJECT = '✅ Your CodeYoung trial class is confirmed!';
 export const BOOKING_CANCELLATION_SUBJECT = '❌ Your CodeYoung trial class has been cancelled';
@@ -23,6 +27,7 @@ export interface ResendSendPayload {
   to: string;
   subject: string;
   text: string;
+  html?: string;
 }
 
 export interface ResendSendResult {
@@ -44,16 +49,20 @@ export class ResendEmailService implements EmailService {
   constructor(private readonly sendEmail?: ResendSendFn) {}
 
   async sendBookingConfirmation(params: BookingConfirmationParams): Promise<void> {
-    const { booking, mentorName, rawCancellationToken, viewBookingUrl } = params;
+    const { booking, mentorName, rawCancellationToken, viewBookingUrl, cancelBookingUrl, joinClassUrl } = params;
+    const content = {
+      booking,
+      mentorName,
+      rawCancellationToken,
+      viewBookingUrl,
+      cancelBookingUrl,
+      joinClassUrl,
+    };
     await this.deliver(
       booking.parentEmail,
       BOOKING_CONFIRMATION_SUBJECT,
-      buildConfirmationEmailText({
-        booking,
-        mentorName,
-        rawCancellationToken,
-        viewBookingUrl,
-      }),
+      buildConfirmationEmailText(content),
+      buildConfirmationEmailHtml(content),
     );
   }
 
@@ -84,13 +93,13 @@ export class ResendEmailService implements EmailService {
     );
   }
 
-  private async deliver(to: string, subject: string, text: string): Promise<void> {
+  private async deliver(to: string, subject: string, text: string, html?: string): Promise<void> {
     try {
       const send = this.resolveSender();
       const from = envFrom();
       if (!send || !from) return;
 
-      const result = await send({ from, to, subject, text });
+      const result = await send({ from, to, subject, text, html });
 
       if (result.error) {
         console.error(
