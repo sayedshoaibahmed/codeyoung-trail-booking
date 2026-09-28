@@ -4,7 +4,7 @@
 **Status:** Expected behavior of the **current** implementation
 
 Use cases are named as in code (`BookClass`, `GetAvailability`, `CancelClass`, …).
-HTTP codes match `errorHandler` and the booking router.
+HTTP codes match `errorHandler` and the booking/admin routers.
 
 There is **no** HOLD, MentorHold, or 2-minute reservation behavior.
 
@@ -14,9 +14,11 @@ There is **no** HOLD, MentorHold, or 2-minute reservation behavior.
 
 Two parents book the same hour; remaining CONFIRMED capacity is one mentor (or both pick the same least-loaded mentor).
 
-**Expected:** SERIALIZABLE transaction + partial unique on CONFIRMED `(mentorId, startTimeUtc)`. If the least-loaded mentor hits that unique index, the same transaction tries the next eligible mentor (PostgreSQL savepoint). `409 SLOT_NOT_AVAILABLE` when no eligible mentor remains (including after a `P2034` retry is exhausted). Alternates: up to 3 eligible hours in the next **12** hours. Emails only for the winner.
+**Expected:** SERIALIZABLE transaction + partial unique on CONFIRMED `(mentorId, startTimeUtc)` (`bookings_mentor_slot_confirmed_unique`). If the least-loaded mentor hits that unique index, the same transaction rolls back to savepoint `booking_mentor_insert` and tries the next eligible mentor. `409 SLOT_NOT_AVAILABLE` when no eligible mentor remains (including after a `P2034` retry is exhausted). Alternates: up to 3 eligible hours in the next **12** hours. Emails only for the winner.
 
 `findEligibleMentors` does not lock mentor rows with `FOR UPDATE`.
+
+Automated P2034 tests mock a throwing UnitOfWork; they do not open two real Postgres sessions.
 
 ---
 
@@ -94,7 +96,11 @@ Spring-forward gap.
 
 ## EC-12: Lead time and past slots
 
-Minimum lead is **2 hours** (`meetsLeadTime`). Too soon → `400 LEAD_TIME_VIOLATION` on book; availability marks those hours `blocked`. There is no separate `PAST_SLOT` code.
+Minimum lead is **2 hours** (`meetsLeadTime`: `slotStart >= now + 120 minutes`). Too soon → `400 LEAD_TIME_VIOLATION` on book; availability marks those hours `blocked`. There is no separate `PAST_SLOT` code.
+
+**Example (not a bug):** at **10:47 IST**, 11:00 and 12:00 are blocked by lead time; **13:00** is the first hourly start that can be considered for eligibility.
+
+Landing copy: “Bookings must be made at least 2 hours in advance.”
 
 ---
 
@@ -128,27 +134,29 @@ Valid token, already CANCELLED → `200` with `alreadyCancelled: true`. No secon
 
 ---
 
-## EC-18: Cancel after start
+## EC-18: Cancel at or after start
 
-`409 CANCELLATION_AFTER_START`. Status unchanged.
+`now >= startTimeUtc` → `409 CANCELLATION_AFTER_START`. Status unchanged. UI copy: “Cancellation is no longer available because the class has started.” Backend enforces this even if the UI still submitted.
 
 ---
 
 ## EC-19: Secure cancellation credential
 
-Raw token only on create response + parent email. Compared with bcrypt. Wrong token → `401 CANCELLATION_TOKEN_INVALID`. GET-by-id never returns the token or the booking.
+Raw token only on create response + parent email (HTML boxed token; plain text on its own line). Compared with bcrypt. Wrong token → `401 CANCELLATION_TOKEN_INVALID`. GET-by-id never returns the token or the booking.
+
+Pasted tokens: wrapping whitespace/newlines are stripped in the cancel UI **before** submit. Entropy/validation rules are unchanged.
 
 ---
 
 ## EC-20: Cancellation-token leakage prevention
 
-Access DTO and GET-by-id omit hashes and raw tokens. Mentor email builder omits cancel/access material. The access page keeps the cancel token in router state only, not localStorage. `/confirmation/:id` does not fetch the booking.
+Access DTO and GET-by-id omit hashes and raw tokens. Mentor email builder omits cancel/access material. The access page keeps the cancel token in router state only, not localStorage. `/confirmation/:id` does not fetch the booking. Classroom path does not embed the cancel token.
 
 ---
 
 ## EC-21: Email failure after commit
 
-Parent and/or mentor send reject → booking API still succeeds (`201`). Logs only. Confirm and mentor sends are independent (`void` + `.catch`).
+Parent and/or mentor send reject → booking API still succeeds (`201`). Logs only. Confirm and mentor sends are independent (`void` + `.catch`). Missing Resend env: skip send, log, booking remains.
 
 ---
 
@@ -184,4 +192,22 @@ Search starts the day **after** `date`, up to **30** parent-local days, using th
 
 ## EC-27: Parent timezone conversion
 
-`requestedStartIso` is wall time in `parentTimezone`. Luxon converts to UTC. Display uses parent zone for the grid and parent clock; mentor zone for mentor clock / `mentorLocalDate`.
+`requestedStartIso` is wall time in `parentTimezone`. Luxon converts to UTC. Display uses parent zone for the grid and parent clock; mentor zone for mentor clock / `mentorLocalDate`. Changing the selected date clears the selected slot.
+
+---
+
+## EC-28: Class lifecycle UI
+
+- Upcoming: Join + cancel (CONFIRMED).
+- Live (`start <= now < end`): Join; cancel hidden.
+- Completed (`now >= end`): “Class Completed” / “This class has already ended.” No Join. Details still load with a valid access token.
+
+Email Join Class with `?access=` that does not match `:id` → invalid-link copy.
+
+---
+
+## EC-29: Admin authentication
+
+Wrong password → `401 ADMIN_INVALID_CREDENTIALS`. No cookie → dashboard/session `401 ADMIN_UNAUTHORIZED`. Too many logins → `429 ADMIN_LOGIN_RATE_LIMITED`. Frontend `/admin` redirects to `/admin/login`. Logout clears cookie and live token. Render restart drops the in-memory session registry.
+
+Admin password is not in the SPA source. Evaluator demo credentials live in the root README only as a shared demo account.
