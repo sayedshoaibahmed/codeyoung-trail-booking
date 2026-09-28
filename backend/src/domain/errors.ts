@@ -144,3 +144,27 @@ export class IdempotencyConflictError extends Error {
     this.name = 'IdempotencyConflictError';
   }
 }
+
+export class AdminInvalidCredentialsError extends Error {
+  readonly code = 'ADMIN_INVALID_CREDENTIALS';
+  constructor() {
+    super('Invalid username or password.');
+    this.name = 'AdminInvalidCredentialsError';
+  }
+}
+
+export class AdminUnauthorizedError extends Error {
+  readonly code = 'ADMIN_UNAUTHORIZED';
+  constructor() {
+    super('Admin authentication is required.');
+    this.name = 'AdminUnauthorizedError';
+  }
+}
+
+export class AdminLoginRateLimitedError extends Error {
+  readonly code = 'ADMIN_LOGIN_RATE_LIMITED';
+  constructor() {
+    super('Too many login attempts. Please try again later.');
+    this.name = 'AdminLoginRateLimitedError';
+  }
+}

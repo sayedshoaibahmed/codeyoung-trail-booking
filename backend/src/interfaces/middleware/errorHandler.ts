@@ -24,6 +24,9 @@ import {
   CancellationAfterStartError,
   IdempotencyConflictError,
   SlotOutsideShiftError,
+  AdminInvalidCredentialsError,
+  AdminUnauthorizedError,
+  AdminLoginRateLimitedError,
 } from '../../domain/errors';
 
 // ── Error → HTTP status mapping ───────────────────────────────────────────────
@@ -41,7 +44,14 @@ function toHttpStatus(err: Error): number {
   ) return 400;
 
   // 401 — authentication / credential failure
-  if (err instanceof CancellationTokenInvalidError) return 401;
+  if (
+    err instanceof CancellationTokenInvalidError ||
+    err instanceof AdminInvalidCredentialsError ||
+    err instanceof AdminUnauthorizedError
+  ) return 401;
+
+  // 429 — login throttling
+  if (err instanceof AdminLoginRateLimitedError) return 429;
 
   // 404 — resource not found
   if (err instanceof BookingNotFoundError || err instanceof BookingLinkInvalidError) return 404;

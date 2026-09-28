@@ -1,7 +1,35 @@
 import { DashboardWidget } from '../../../widgets/dashboard/ui/DashboardWidget';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useAdminSession } from '../../../features/admin-auth/model/useAdminSession';
+import { adminAuthApi } from '../../../features/admin-auth/api';
+import { Button } from '../../../shared/ui/button';
 
 export function AdminDashboardPage() {
+  const session = useAdminSession();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  if (session === 'loading') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans text-slate-500">
+        Checking admin session…
+      </div>
+    );
+  }
+
+  if (session === 'unauthenticated') {
+    return <Navigate to="/admin/login" replace />;
+  }
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await adminAuthApi.logout();
+    } finally {
+      window.location.assign('/admin/login');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 pb-12 font-sans text-slate-900 overflow-x-hidden">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
@@ -13,10 +41,20 @@ export function AdminDashboardPage() {
               </div>
               <h1 className="text-base sm:text-xl font-extrabold text-teal-950 tracking-tight truncate">CodeYoung Admin</h1>
             </div>
-            <nav className="shrink-0">
-              <Link to="/book" className="text-sm font-semibold text-teal-700 hover:text-teal-900 transition-colors whitespace-nowrap">
-                ← Booking
+            <nav className="flex flex-wrap items-center gap-x-4 gap-y-1 shrink-0">
+              <Link to="/" className="text-sm font-semibold text-teal-700 hover:text-teal-900 transition-colors whitespace-nowrap">
+                ← Home
               </Link>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-xl"
+                onClick={() => { void handleLogout(); }}
+                disabled={isLoggingOut}
+              >
+                {isLoggingOut ? 'Signing out…' : 'Logout'}
+              </Button>
             </nav>
           </div>
         </div>

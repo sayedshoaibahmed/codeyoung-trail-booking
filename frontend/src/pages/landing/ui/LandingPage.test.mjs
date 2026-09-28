@@ -15,13 +15,18 @@ test('root route is the landing page and /book is the existing booking form', ()
   assert.match(app, /path=["']\/confirmation\/:id["']/);
   assert.match(app, /path=["']\/class\/:id["']/);
   assert.match(app, /path=["']\/cancel\/:bookingId["']/);
+  assert.match(app, /path=["']\/admin\/login["']/);
   assert.match(app, /path=["']\/admin["']/);
+  assert.match(app, /AdminLoginPage/);
 });
 
 test('landing page CTA navigates to /book and has no booking API calls', () => {
   const page = readFileSync(join(here, 'LandingPage.tsx'), 'utf8');
   assert.match(page, /Book a FREE Trial Class/);
   assert.match(page, /to=["']\/book["']/);
+  assert.match(page, /to=["']\/admin["']/);
+  assert.match(page, /Admin Dashboard/);
+  assert.match(page, /Book a FREE Trial/);
   assert.match(page, /Free 1-Hour Trial/);
   assert.match(page, /Bookings must be made at least 2 hours in advance\./);
   assert.doesNotMatch(page, /useBookSlot/);
@@ -35,4 +40,6 @@ test('booking page still uses BookingFormWidget and can return home', () => {
   assert.match(page, /BookingFormWidget/);
   assert.match(page, /to=["']\/["']/);
   assert.match(page, /← Home/);
+  assert.doesNotMatch(page, /Admin Area/);
+  assert.doesNotMatch(page, /to=["']\/admin["']/);
 });

@@ -8,9 +8,12 @@
  *   POST /api/booking-access         — fetch booking by access token (body)
  *   POST /api/bookings/:id/cancel    — cancel booking (with cancellationToken)
  *   GET  /api/classes/:id            — same privacy rule as GET /api/bookings/:id
- *   GET  /api/admin/dashboard        — admin read-only dashboard
+ *   POST /api/admin/login            — admin session cookie
+ *   POST /api/admin/logout           — clear admin session
+ *   GET  /api/admin/session          — current admin session
+ *   GET  /api/admin/dashboard        — admin read-only dashboard (auth)
  */
-import 'dotenv/config';
+import './loadEnv';
 import express from 'express';
 import cors from 'cors';
 import {
@@ -22,6 +25,8 @@ import {
   getBookingUseCase,
   getBookingByAccessUseCase,
   getAdminDashboardUseCase,
+  authenticateAdminUseCase,
+  adminSessionService,
 } from './infrastructure';
 import { createAvailabilityRouter } from './interfaces/routes/availabilityRouter';
 import { createBookingRouter }      from './interfaces/routes/bookingRouter';
@@ -67,6 +72,7 @@ function isAllowedFrontendOrigin(origin: string): boolean {
 }
 
 const app = express();
+app.set('trust proxy', 1);
 app.use(cors({
   origin(origin, callback) {
     // Non-browser clients (curl, Render health checks) send no Origin.
@@ -80,7 +86,7 @@ app.use(cors({
     }
     callback(null, false);
   },
-  credentials: false,
+  credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Idempotency-Key'],
 }));
@@ -97,7 +103,11 @@ api.use(createAvailabilityRouter(getAvailabilityUseCase, getNextAvailableDateUse
 api.use('/booking-access', createBookingAccessRouter(getBookingByAccessUseCase));
 api.use('/bookings', createBookingRouter(bookClassUseCase, getBookingUseCase, cancelClassUseCase));
 api.use('/classes', createClassesRouter(getBookingUseCase));
-api.use('/admin', createAdminRouter(getAdminDashboardUseCase));
+api.use('/admin', createAdminRouter({
+  getDashboard: getAdminDashboardUseCase,
+  authenticateAdmin: authenticateAdminUseCase,
+  sessions: adminSessionService,
+}));
 app.use('/api', api);
 
 // ── Error handler (must come AFTER all routes) ────────────────────────────
@@ -107,6 +117,14 @@ app.use(errorHandler);
 const port = process.env.PORT ?? 3000;
 const server = app.listen(port, () => {
   console.log(`Server started on port ${port}`);
+  const adminReady = Boolean(
+    process.env.ADMIN_USERNAME?.trim()
+    && process.env.ADMIN_PASSWORD?.trim()
+    && process.env.ADMIN_SESSION_SECRET?.trim(),
+  );
+  if (!adminReady) {
+    console.warn('[admin] ADMIN_USERNAME, ADMIN_PASSWORD, and ADMIN_SESSION_SECRET must be set for login to work');
+  }
 });
 
 const shutdown = async (): Promise<void> => {

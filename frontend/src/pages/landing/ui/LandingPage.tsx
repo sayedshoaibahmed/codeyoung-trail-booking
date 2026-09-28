@@ -49,7 +49,7 @@ export function LandingPage() {
     <div className="min-h-screen bg-[#f7f6f3] font-sans text-slate-900 overflow-x-hidden">
       <header className="bg-white/95 border-b border-slate-200/80 shadow-sm sticky top-0 z-20 backdrop-blur-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between gap-3 min-h-[4.25rem] py-3">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 min-h-[4.25rem] py-3">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-9 h-9 shrink-0 bg-amber-500 rounded-xl flex items-center justify-center font-extrabold text-sm text-slate-900 shadow-sm">
                 CY
@@ -58,9 +58,17 @@ export function LandingPage() {
                 CodeYoung
               </span>
             </div>
-            <Link to="/book" className={`${ctaClass} h-10 px-3.5 sm:px-4 text-sm`}>
-              Book a FREE Trial
-            </Link>
+            <nav className="flex flex-wrap items-center justify-end gap-x-3 sm:gap-x-4 gap-y-2 shrink-0">
+              <Link
+                to="/admin"
+                className="text-sm font-semibold text-teal-700 hover:text-teal-900 transition-colors whitespace-nowrap"
+              >
+                Admin Dashboard
+              </Link>
+              <Link to="/book" className={`${ctaClass} h-10 px-3.5 sm:px-4 text-sm`}>
+                Book a FREE Trial
+              </Link>
+            </nav>
           </div>
         </div>
       </header>

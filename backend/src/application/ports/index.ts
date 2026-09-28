@@ -22,3 +22,4 @@ export type {
   BookingSummaryDto,
   MentorUtilizationDto,
 } from './AdminDashboardRepository';
+export type { AdminCredentialVerifier, AdminSessionService } from './AdminAuth';

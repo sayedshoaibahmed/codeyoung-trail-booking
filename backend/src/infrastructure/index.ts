@@ -4,6 +4,7 @@
  * The ONLY file allowed to import from both application/ and infrastructure/
  * in the same place. All port-to-implementation bindings happen here.
  */
+import '../loadEnv';
 import prisma from './database/prismaClient';
 import { PrismaMentorRepository }         from './database/PrismaMentorRepository';
 import { PrismaBookingRepository }        from './database/PrismaBookingRepository';
@@ -20,6 +21,9 @@ import { CancelClassUseCase }            from '../application/useCases/CancelCla
 import { GetBookingUseCase }             from '../application/useCases/GetBooking';
 import { GetBookingByAccessUseCase }     from '../application/useCases/GetBookingByAccess';
 import { GetAdminDashboardUseCase }      from '../application/useCases/GetAdminDashboard';
+import { AuthenticateAdminUseCase }      from '../application/useCases/AuthenticateAdmin';
+import { EnvAdminCredentials }           from './auth/envAdminCredentials';
+import { HmacAdminSession }              from './auth/hmacAdminSession';
 
 // ── Infrastructure singletons ─────────────────────────────────────────────
 export const mentorRepository        = new PrismaMentorRepository(prisma);
@@ -75,6 +79,13 @@ export const getBookingByAccessUseCase = new GetBookingByAccessUseCase(
 export const getAdminDashboardUseCase = new GetAdminDashboardUseCase(
   adminDashboardRepository,
   timezoneService,
+);
+
+export const adminCredentialVerifier = EnvAdminCredentials.fromEnv();
+export const adminSessionService = HmacAdminSession.fromEnv();
+export const authenticateAdminUseCase = new AuthenticateAdminUseCase(
+  adminCredentialVerifier,
+  adminSessionService,
 );
 
 // Re-export prisma for graceful shutdown in index.ts

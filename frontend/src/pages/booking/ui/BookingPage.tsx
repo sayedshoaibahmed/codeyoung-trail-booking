@@ -19,9 +19,6 @@ export function BookingPage() {
               <Link to="/" className="text-sm font-semibold text-slate-600 hover:text-teal-900 transition-colors whitespace-nowrap">
                 ← Home
               </Link>
-              <Link to="/admin" className="text-sm font-semibold text-teal-700 hover:text-teal-900 transition-colors whitespace-nowrap">
-                Admin Area →
-              </Link>
             </nav>
           </div>
         </div>

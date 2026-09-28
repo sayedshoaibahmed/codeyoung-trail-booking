@@ -21,6 +21,8 @@ import { createBookingAccessRouter } from '../../interfaces/routes/bookingAccess
 import { createClassesRouter }      from '../../interfaces/routes/classesRouter';
 import { createAdminRouter }        from '../../interfaces/routes/adminRouter';
 import { errorHandler }             from '../../interfaces/middleware/errorHandler';
+import { AuthenticateAdminUseCase } from '../../application/useCases/AuthenticateAdmin';
+import { HmacAdminSession }         from '../../infrastructure/auth/hmacAdminSession';
 
 import {
   BookingNotFoundError,
@@ -126,6 +128,11 @@ function buildTestApp() {
       mentorUtilization: [],
     }),
   };
+  const sessions = new HmacAdminSession('test-admin-session-secret-32chars');
+  const authenticateAdmin = new AuthenticateAdminUseCase(
+    { verify: (u, p) => u === 'codeyoung' && p === 'codeyoung' },
+    sessions,
+  );
 
   const app = express();
   app.use(express.json());
@@ -139,7 +146,12 @@ function buildTestApp() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   api.use('/classes', createClassesRouter(mockGetBooking as any));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  api.use('/admin', createAdminRouter(mockGetAdminDashboard as any));
+  api.use('/admin', createAdminRouter({
+    getDashboard: mockGetAdminDashboard as any,
+    authenticateAdmin,
+    sessions,
+    loginRateLimit: (_req, _res, next) => next(),
+  }));
   app.use('/api', api);
   app.use(errorHandler);
 
@@ -526,9 +538,19 @@ describe('Item 25 — API validation errors', () => {
   // ── GET /api/admin/dashboard ─────────────────────────────────────────────
 
   describe('GET /api/admin/dashboard', () => {
-    it('200 with dashboard shape on valid request', async () => {
+    it('401 without a session cookie', async () => {
       const { request } = buildTestApp();
       const res = await request.get('/api/admin/dashboard');
+      expect(res.status).toBe(401);
+      expect(res.body.code).toBe('ADMIN_UNAUTHORIZED');
+    });
+
+    it('200 with dashboard shape when authenticated', async () => {
+      const { request } = buildTestApp();
+      const login = await request.post('/api/admin/login').send({ username: 'codeyoung', password: 'codeyoung' });
+      expect(login.status).toBe(200);
+      const cookie = login.headers['set-cookie'];
+      const res = await request.get('/api/admin/dashboard').set('Cookie', cookie);
       expect(res.status).toBe(200);
       expect(res.body.summary).toBeDefined();
       expect(res.body.upcomingConfirmed).toBeInstanceOf(Array);
