@@ -27,3 +27,36 @@ test('pasted cancellation tokens drop wrapping whitespace', () => {
   const dialog = readFileSync(join(src, 'features/cancel-booking/ui/CancelBookingDialog.tsx'), 'utf8');
   assert.match(dialog, /normalizeCancellationToken/);
 });
+
+test('CANCELLATION_AFTER_START shows the class-started message', () => {
+  const message = 'Cancellation is no longer available because the class has started.';
+
+  function userFacingCancelError(err) {
+    if (err && err.code === 'CANCELLATION_AFTER_START') {
+      return message;
+    }
+    if (err && err.message) {
+      return err.message;
+    }
+    return 'An unexpected error occurred.';
+  }
+
+  assert.equal(
+    userFacingCancelError({
+      code: 'CANCELLATION_AFTER_START',
+      message: 'A booking cannot be cancelled after its class has already started.',
+    }),
+    message,
+  );
+  assert.equal(
+    userFacingCancelError({ code: 'CANCELLATION_TOKEN_INVALID', message: 'The cancellation token is invalid or does not match this booking.' }),
+    'The cancellation token is invalid or does not match this booking.',
+  );
+
+  const helper = readFileSync(join(src, 'features/cancel-booking/lib/userFacingCancelError.ts'), 'utf8');
+  assert.match(helper, /CANCELLATION_AFTER_START/);
+  assert.match(helper, /Cancellation is no longer available because the class has started\./);
+
+  const dialog = readFileSync(join(src, 'features/cancel-booking/ui/CancelBookingDialog.tsx'), 'utf8');
+  assert.match(dialog, /userFacingCancelError/);
+});

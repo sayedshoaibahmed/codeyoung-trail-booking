@@ -7,7 +7,7 @@
 import type { Booking } from '../model/types';
 import { MentorBadge, mentorFromBooking } from '../../mentor';
 import { classRoomPath } from '../../../shared/lib/classRoomPath';
-import { formatBookingDate, formatBookingTime } from '../lib/display';
+import { canShowJoinClass, formatBookingDate, formatBookingTime } from '../lib/display';
 import { formatTimezoneLabel } from '../../../shared/lib/timezoneLabel';
 
 interface BookingDetailCardProps {
@@ -84,7 +84,7 @@ export function BookingDetailCard({ booking }: BookingDetailCardProps) {
           </div>
         </div>
 
-        {booking.status === 'CONFIRMED' && (
+        {canShowJoinClass(booking) && (
           <div className="sm:col-span-2 pt-4 border-t border-slate-100">
             <p className="text-slate-500 font-medium mb-1 uppercase tracking-wide text-xs">Join class</p>
             <a

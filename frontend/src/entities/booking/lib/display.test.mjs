@@ -55,31 +55,93 @@ test('detail card shows mentor, parent, student, times, timezone, and status fro
   assert.doesNotMatch(card, /Asia\/Calcutta/);
 });
 
-test('Join Class uses /class/<booking-id>', () => {
+function getClassSessionPhase(times, now = new Date()) {
+  const nowMs = now.getTime();
+  const start = new Date(times.startTimeUtc).getTime();
+  const end = new Date(times.endTimeUtc).getTime();
+  if (nowMs < start) return 'upcoming';
+  if (nowMs < end) return 'live';
+  return 'completed';
+}
+
+function canShowJoinClass(record, now = new Date()) {
+  if (record.status !== 'CONFIRMED') return false;
+  return getClassSessionPhase(record, now) !== 'completed';
+}
+
+test('class session phase uses stored UTC start and end, not hardcoded hours', () => {
+  const slot = {
+    startTimeUtc: '2024-11-04T06:30:00.000Z', // 12:00 PM IST
+    endTimeUtc: '2024-11-04T07:30:00.000Z',   // 1:00 PM IST
+  };
+
+  assert.equal(getClassSessionPhase(slot, new Date('2024-11-04T06:29:59.999Z')), 'upcoming');
+  assert.equal(getClassSessionPhase(slot, new Date('2024-11-04T06:30:00.000Z')), 'live');
+  assert.equal(getClassSessionPhase(slot, new Date('2024-11-04T07:00:00.000Z')), 'live');
+  assert.equal(getClassSessionPhase(slot, new Date('2024-11-04T07:29:59.999Z')), 'live');
+  assert.equal(getClassSessionPhase(slot, new Date('2024-11-04T07:30:00.000Z')), 'completed');
+  assert.equal(getClassSessionPhase(slot, new Date('2024-11-04T08:00:00.000Z')), 'completed');
+});
+
+test('Join Class is shown for upcoming and live confirmed classes, not after end', () => {
+  const confirmed = { ...booking, startTimeUtc: '2024-11-04T06:30:00.000Z', endTimeUtc: '2024-11-04T07:30:00.000Z' };
+
+  assert.equal(canShowJoinClass(confirmed, new Date('2024-11-04T06:00:00.000Z')), true);
+  assert.equal(canShowJoinClass(confirmed, new Date('2024-11-04T06:30:00.000Z')), true);
+  assert.equal(canShowJoinClass(confirmed, new Date('2024-11-04T07:29:59.999Z')), true);
+  assert.equal(canShowJoinClass(confirmed, new Date('2024-11-04T07:30:00.000Z')), false);
+  assert.equal(canShowJoinClass({ ...confirmed, status: 'CANCELLED' }, new Date('2024-11-04T06:00:00.000Z')), false);
+
+  const display = readFileSync(join(src, 'entities/booking/lib/display.ts'), 'utf8');
+  assert.match(display, /export function getClassSessionPhase/);
+  assert.match(display, /export function canShowJoinClass/);
+  assert.match(display, /nowMs < start/);
+  assert.match(display, /nowMs < end/);
+});
+
+test('Join Class uses /class/<booking-id> and is gated by class session phase', () => {
   const page = readFileSync(join(src, 'pages/booking-access/ui/BookingAccessPage.tsx'), 'utf8');
   assert.match(page, /classRoomPath\(booking\.id\)/);
   assert.match(page, /Join Class/);
+  assert.match(page, /canShowJoinClass\(booking\)/);
+  assert.match(page, /getClassSessionPhase\(booking\)/);
+  assert.match(page, /Class Completed/);
+  assert.match(page, /This class has already ended\./);
+
+  const card = readFileSync(join(src, 'entities/booking/ui/BookingDetailCard.tsx'), 'utf8');
+  assert.match(card, /canShowJoinClass\(booking\)/);
+
+  const classroom = readFileSync(join(src, 'pages/class-room/ui/ClassRoomPage.tsx'), 'utf8');
+  assert.match(classroom, /getClassSessionPhase\(summary\)/);
+  assert.match(classroom, /Class Completed/);
+  assert.match(classroom, /This class has already ended\./);
 
   const helper = readFileSync(join(src, 'shared/lib/classRoomPath.ts'), 'utf8');
   assert.match(helper, /`\/class\/\$\{bookingId\}`/);
 });
 
 test('cancel uses the existing token dialog and is hidden after start or cancel', () => {
+  const noonClass = {
+    ...booking,
+    startTimeUtc: '2024-11-04T06:30:00.000Z', // 12:00 PM IST
+    endTimeUtc: '2024-11-04T07:30:00.000Z',   // 1:00 PM IST
+  };
+
   assert.equal(
     canOfferCancellation({ ...booking, status: 'CANCELLED' }, new Date('2024-11-01T00:00:00Z')),
     false,
   );
-  assert.equal(
-    canOfferCancellation(booking, new Date('2024-11-04T04:30:00.000Z')),
-    false,
-  );
-  assert.equal(
-    canOfferCancellation(booking, new Date('2024-11-04T04:29:00.000Z')),
-    true,
-  );
+  assert.equal(canOfferCancellation(noonClass, new Date('2024-11-04T06:29:59.999Z')), true);
+  assert.equal(canOfferCancellation(noonClass, new Date('2024-11-04T06:30:00.000Z')), false);
+  assert.equal(canOfferCancellation(noonClass, new Date('2024-11-04T07:00:00.000Z')), false);
+  assert.equal(canOfferCancellation(noonClass, new Date('2024-11-04T07:30:00.000Z')), false);
+  assert.equal(canShowJoinClass(noonClass, new Date('2024-11-04T07:00:00.000Z')), true);
+  assert.equal(canShowJoinClass(noonClass, new Date('2024-11-04T07:30:00.000Z')), false);
 
   const page = readFileSync(join(src, 'pages/booking-access/ui/BookingAccessPage.tsx'), 'utf8');
-  assert.match(page, /canOfferCancellation\(booking\)/);
+  assert.match(page, /canOfferCancellation\(booking\) \?/);
+  assert.match(page, /Cancel Booking/);
+  assert.match(page, /getClassSessionPhase\(booking\) === ['"]completed['"]/);
   assert.match(page, /CancelBookingDialog/);
   assert.match(page, /location\.state\?\.cancellationToken/);
   assert.doesNotMatch(page, /cancellationTokenHash/);

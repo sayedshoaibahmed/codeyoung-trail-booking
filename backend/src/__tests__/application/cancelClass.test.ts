@@ -240,6 +240,58 @@ describe('CancelClassUseCase — cancellation after class start', () => {
   });
 });
 
+describe('CancelClassUseCase — cancellation timing vs startTimeUtc', () => {
+  // 12:00 PM–1:00 PM IST stored as UTC instants (no hardcoded local hours in the rule).
+  const classStart = new Date('2024-11-04T06:30:00.000Z');
+  const classEnd   = new Date('2024-11-04T07:30:00.000Z');
+
+  async function runAt(nowIso: string) {
+    const booking     = await makeBooking({ startTimeUtc: classStart, endTimeUtc: classEnd });
+    const bookingRepo = buildBookingRepo(booking);
+    const uow         = buildUoW(bookingRepo);
+    const uc = new CancelClassUseCase(
+      uow,
+      bookingRepo,
+      buildMentorRepo(),
+      buildTzService(nowIso),
+      buildEmailService(),
+    );
+    return { uc, booking, cancelSpy: bookingRepo.cancel as ReturnType<typeof vi.fn> };
+  }
+
+  it('allows cancellation before class start', async () => {
+    const { uc, booking, cancelSpy } = await runAt('2024-11-04T06:29:59.999Z');
+    const result = await uc.execute({ bookingId: booking.id, cancellationToken: RAW_TOKEN });
+    expect(result.status).toBe('CANCELLED');
+    expect(result.alreadyCancelled).toBe(false);
+    expect(cancelSpy).toHaveBeenCalledOnce();
+  });
+
+  it('rejects cancellation exactly at class start', async () => {
+    const { uc, booking, cancelSpy } = await runAt('2024-11-04T06:30:00.000Z');
+    await expect(
+      uc.execute({ bookingId: booking.id, cancellationToken: RAW_TOKEN }),
+    ).rejects.toThrow(CancellationAfterStartError);
+    expect(cancelSpy).not.toHaveBeenCalled();
+  });
+
+  it('rejects cancellation during class', async () => {
+    const { uc, booking, cancelSpy } = await runAt('2024-11-04T07:00:00.000Z');
+    await expect(
+      uc.execute({ bookingId: booking.id, cancellationToken: RAW_TOKEN }),
+    ).rejects.toThrow(CancellationAfterStartError);
+    expect(cancelSpy).not.toHaveBeenCalled();
+  });
+
+  it('rejects cancellation after class end', async () => {
+    const { uc, booking, cancelSpy } = await runAt('2024-11-04T07:30:00.000Z');
+    await expect(
+      uc.execute({ bookingId: booking.id, cancellationToken: RAW_TOKEN }),
+    ).rejects.toThrow(CancellationAfterStartError);
+    expect(cancelSpy).not.toHaveBeenCalled();
+  });
+});
+
 describe('CancelClassUseCase — email failure', () => {
   it('does NOT surface an email failure to the caller', async () => {
     const booking     = await makeBooking();

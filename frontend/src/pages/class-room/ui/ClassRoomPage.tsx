@@ -6,7 +6,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useParams, useLocation, useSearchParams, Link } from 'react-router-dom';
 import { Button } from '../../../shared/ui/button';
 import { leaveClassPath, classSummaryFromBooking, type ClassRoomNavState, type ClassRoomSummary } from '../../../shared/lib/classRoomPath';
-import { formatBookingDate, formatBookingTime } from '../../../entities/booking/lib/display';
+import { formatBookingDate, formatBookingTime, getClassSessionPhase } from '../../../entities/booking/lib/display';
 import { formatTimezoneLabel } from '../../../shared/lib/timezoneLabel';
 import { bookingApi } from '../../../entities/booking/api';
 import { ApiError } from '../../../shared/api/base';
@@ -93,6 +93,11 @@ export function ClassRoomPage() {
     );
   }
 
+  const classEnded =
+    summary !== undefined &&
+    summary.status === 'CONFIRMED' &&
+    getClassSessionPhase(summary) === 'completed';
+
   return (
     <ClassroomShell exitTo={exitTo}>
         <div className="max-w-3xl w-full bg-slate-800 rounded-2xl sm:rounded-3xl p-6 sm:p-12 text-center shadow-2xl border border-slate-700 relative overflow-hidden min-w-0">
@@ -102,9 +107,15 @@ export function ClassRoomPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-3">Demo Class Room</h2>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-3">
+            {classEnded ? 'Class Completed' : 'Demo Class Room'}
+          </h2>
           {isValidating ? (
             <p className="text-slate-400 mb-6 text-base sm:text-lg" aria-busy="true">Connecting to your class…</p>
+          ) : classEnded ? (
+            <p className="text-slate-400 mb-6 text-base sm:text-lg leading-relaxed max-w-xl mx-auto">
+              This class has already ended.
+            </p>
           ) : (
             <p className="text-slate-400 mb-6 text-base sm:text-lg leading-relaxed max-w-xl mx-auto break-words">
               This is the dummy classroom for booking{' '}
@@ -135,6 +146,15 @@ export function ClassRoomPage() {
               <p className="text-slate-400 text-xs break-words">{formatTimezoneLabel(summary.mentorTimezone)}</p>
             </div>
           )}
+          {classEnded ? (
+            <Link
+              to={exitTo}
+              className="inline-flex items-center justify-center w-full sm:w-auto whitespace-nowrap rounded-xl text-base font-bold transition-colors bg-amber-500 text-slate-900 hover:bg-amber-600 shadow-sm h-12 px-8"
+            >
+              View Booking
+            </Link>
+          ) : (
+            <>
           <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-center">
             <Button variant="secondary" className="px-8 h-12 rounded-xl bg-slate-700 text-white hover:bg-slate-600 border-none w-full sm:w-auto">
               Mute Mic
@@ -151,6 +171,8 @@ export function ClassRoomPage() {
           <p className="mt-6 text-slate-500 text-xs">
             Ending the call leaves the classroom. It does not cancel the booking.
           </p>
+            </>
+          )}
         </div>
     </ClassroomShell>
   );

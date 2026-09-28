@@ -91,7 +91,7 @@ export class CancelClassUseCase {
         };
       }
 
-      // ── Time check: cannot cancel after class start ────────────────────────
+      // ── Time check: cannot cancel at or after class start (UTC instants) ──
       if (now >= locked.startTimeUtc) {
         throw new CancellationAfterStartError();
       }

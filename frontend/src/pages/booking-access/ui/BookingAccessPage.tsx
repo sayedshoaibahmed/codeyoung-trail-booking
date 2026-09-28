@@ -9,7 +9,7 @@ import { useParams, useLocation, Link } from 'react-router-dom';
 import { useBookingAccess } from '../../../features/view-booking/model/useBookingAccess';
 import { CancelBookingDialog } from '../../../features/cancel-booking/ui/CancelBookingDialog';
 import { BookingDetailCard } from '../../../entities/booking/ui/BookingDetailCard';
-import { canOfferCancellation } from '../../../entities/booking/lib/display';
+import { canOfferCancellation, canShowJoinClass, getClassSessionPhase } from '../../../entities/booking/lib/display';
 import { Button } from '../../../shared/ui/button';
 import { classRoomPath, classSummaryFromBooking } from '../../../shared/lib/classRoomPath';
 
@@ -120,7 +120,14 @@ export function BookingAccessPage() {
 
         <div className="flex flex-col sm:flex-row flex-wrap gap-4 justify-center mt-8">
           {booking.status === 'CONFIRMED' ? (
+            getClassSessionPhase(booking) === 'completed' ? (
+              <div className="w-full text-center space-y-2">
+                <p className="text-lg font-bold text-teal-950">Class Completed</p>
+                <p className="text-sm text-slate-500 font-medium">This class has already ended.</p>
+              </div>
+            ) : (
             <>
+              {canShowJoinClass(booking) && (
               <Link
                 to={classRoomPath(booking.id)}
                 state={{
@@ -131,6 +138,7 @@ export function BookingAccessPage() {
               >
                 Join Class
               </Link>
+              )}
               {canOfferCancellation(booking) ? (
                 <Button variant="outline" size="lg" className="h-14 rounded-xl px-8 w-full sm:w-auto" onClick={() => setShowCancelDialog(true)}>
                   Cancel Booking
@@ -141,6 +149,7 @@ export function BookingAccessPage() {
                 </p>
               )}
             </>
+            )
           ) : (
             <Link
               to="/book"

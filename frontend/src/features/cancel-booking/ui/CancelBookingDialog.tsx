@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { cancelBookingApi } from '../api';
-import { ApiError } from '../../../shared/api/base';
 import { Button } from '../../../shared/ui/button';
 import { Input } from '../../../shared/ui/input';
 import { normalizeCancellationToken } from '../lib/normalizeCancellationToken';
+import { userFacingCancelError } from '../lib/userFacingCancelError';
 
 interface CancelBookingDialogProps {
   bookingId: string;
@@ -29,12 +29,8 @@ export function CancelBookingDialog({ bookingId, initialToken = '', onSuccess, o
     try {
       await cancelBookingApi.cancel(bookingId, { cancellationToken });
       onSuccess();
-    } catch (err: any) {
-      if (err instanceof ApiError) {
-        setError(err.message || 'Cancellation failed.');
-      } else {
-        setError('An unexpected error occurred.');
-      }
+    } catch (err: unknown) {
+      setError(userFacingCancelError(err));
     } finally {
       setIsSubmitting(false);
     }

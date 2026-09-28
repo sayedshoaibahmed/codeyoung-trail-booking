@@ -18,6 +18,9 @@ test('View Booking route opens details from the access token, not localStorage o
   assert.match(page, /Join Class/);
   assert.match(page, /CancelBookingDialog/);
   assert.match(page, /canOfferCancellation/);
+  assert.match(page, /canShowJoinClass/);
+  assert.match(page, /getClassSessionPhase/);
+  assert.match(page, /Class Completed/);
   assert.match(page, /classRoomPath\(booking\.id\)/);
   assert.doesNotMatch(page, /window\.localStorage/);
   assert.doesNotMatch(page, /getBooking\(id\)/);

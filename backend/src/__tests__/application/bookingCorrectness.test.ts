@@ -957,6 +957,26 @@ describe('Item 22 — cancellation after class start', () => {
       uc.execute({ bookingId: booking.id, cancellationToken: CANCEL_RAW_TOKEN }),
     ).rejects.toThrow(CancellationAfterStartError);
   });
+
+  it('throws CancellationAfterStartError at the exact start instant', async () => {
+    const { uc, booking } = await buildCancelUcAndBooking({
+      startTimeUtc: new Date('2024-11-04T08:00:00Z'),
+      endTimeUtc:   new Date('2024-11-04T09:00:00Z'),
+    });
+    await expect(
+      uc.execute({ bookingId: booking.id, cancellationToken: CANCEL_RAW_TOKEN }),
+    ).rejects.toThrow(CancellationAfterStartError);
+  });
+
+  it('throws CancellationAfterStartError during the class window', async () => {
+    const { uc, booking } = await buildCancelUcAndBooking({
+      startTimeUtc: new Date('2024-11-04T07:30:00Z'),
+      endTimeUtc:   new Date('2024-11-04T08:30:00Z'),
+    });
+    await expect(
+      uc.execute({ bookingId: booking.id, cancellationToken: CANCEL_RAW_TOKEN }),
+    ).rejects.toThrow(CancellationAfterStartError);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
