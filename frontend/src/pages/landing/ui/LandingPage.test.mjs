@@ -23,6 +23,7 @@ test('landing page CTA navigates to /book and has no booking API calls', () => {
   assert.match(page, /Book a FREE Trial Class/);
   assert.match(page, /to=["']\/book["']/);
   assert.match(page, /Free 1-Hour Trial/);
+  assert.match(page, /Bookings must be made at least 2 hours in advance\./);
   assert.doesNotMatch(page, /useBookSlot/);
   assert.doesNotMatch(page, /useAvailability/);
   assert.doesNotMatch(page, /BookingFormWidget/);

@@ -78,6 +78,9 @@ export function LandingPage() {
               <p className="text-base sm:text-lg text-slate-600 mb-8 leading-relaxed max-w-xl mx-auto lg:mx-0">
                 Give your child a fun, interactive 1-on-1 learning experience with an expert mentor.
               </p>
+              <p className="text-base sm:text-lg text-slate-600 mb-8 leading-relaxed max-w-xl mx-auto lg:mx-0">
+                Bookings must be made at least 2 hours in advance.
+              </p>
               <Link to="/book" className={`${ctaClass} h-14 px-8 text-base w-full sm:w-auto`}>
                 Book a FREE Trial Class →
               </Link>
