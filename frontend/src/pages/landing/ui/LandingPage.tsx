@@ -1,3 +1,4 @@
+import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import heroStudy from './hero-study.webp';
 
@@ -45,31 +46,98 @@ function HeroScene() {
 }
 
 export function LandingPage() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuId = useId();
+  const headerRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      const root = headerRef.current;
+      if (root && !root.contains(event.target as Node)) setMenuOpen(false);
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [menuOpen]);
+
   return (
     <div className="min-h-screen bg-[#f7f6f3] font-sans text-slate-900 overflow-x-hidden">
-      <header className="bg-white/95 border-b border-slate-200/80 shadow-sm sticky top-0 z-20 backdrop-blur-sm">
+      <header
+        ref={headerRef}
+        className="bg-white/95 border-b border-slate-200/80 shadow-sm sticky top-0 z-20 backdrop-blur-sm"
+      >
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 min-h-[4.25rem] py-3">
-            <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex items-center justify-between gap-x-3 min-h-[4.25rem] py-3">
+            <div className="flex items-center gap-2.5 shrink-0">
               <div className="w-9 h-9 shrink-0 bg-amber-500 rounded-xl flex items-center justify-center font-extrabold text-sm text-slate-900 shadow-sm">
                 CY
               </div>
-              <span className="text-lg sm:text-xl font-extrabold tracking-tight text-teal-950 truncate">
+              <span className="text-lg md:text-xl font-extrabold tracking-tight text-teal-950 whitespace-nowrap">
                 CodeYoung
               </span>
             </div>
-            <nav className="flex flex-wrap items-center justify-end gap-x-3 sm:gap-x-4 gap-y-2 shrink-0">
+            <nav
+              className="hidden md:flex items-center justify-end gap-x-4 shrink-0"
+              aria-label="Primary"
+            >
               <Link
                 to="/admin"
                 className="text-sm font-semibold text-teal-700 hover:text-teal-900 transition-colors whitespace-nowrap"
               >
                 Admin Dashboard
               </Link>
-              <Link to="/book" className={`${ctaClass} h-10 px-3.5 sm:px-4 text-sm`}>
+              <Link to="/book" className={`${ctaClass} h-10 px-4 text-sm`}>
                 Book a FREE Trial
               </Link>
             </nav>
+            <button
+              type="button"
+              className="md:hidden inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-teal-950 shadow-sm hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-800 focus-visible:ring-offset-2"
+              aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={menuOpen}
+              aria-controls={menuId}
+              onClick={() => setMenuOpen((open) => !open)}
+            >
+              {menuOpen ? (
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.25} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.25} d="M4 7h16M4 12h16M4 17h16" />
+                </svg>
+              )}
+            </button>
           </div>
+          {menuOpen && (
+            <nav id={menuId} className="md:hidden pb-4 min-w-0" aria-label="Mobile">
+              <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-md">
+                <Link
+                  to="/admin"
+                  className="flex min-h-12 items-center rounded-xl px-4 text-sm font-semibold text-teal-800 hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-800"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Admin Dashboard
+                </Link>
+                <Link
+                  to="/book"
+                  className={`${ctaClass} mt-2 h-12 w-full px-4 text-sm`}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Book a FREE Trial
+                </Link>
+              </div>
+            </nav>
+          )}
         </div>
       </header>
 

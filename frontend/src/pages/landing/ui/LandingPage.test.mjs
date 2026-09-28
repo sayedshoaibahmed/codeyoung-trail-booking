@@ -35,6 +35,18 @@ test('landing page CTA navigates to /book and has no booking API calls', () => {
   assert.doesNotMatch(page, /\/api\//);
 });
 
+test('landing header uses a mobile hamburger menu and keeps desktop nav at md', () => {
+  const page = readFileSync(join(here, 'LandingPage.tsx'), 'utf8');
+  assert.match(page, /aria-label=\{menuOpen \? 'Close menu' : 'Open menu'\}/);
+  assert.match(page, /aria-expanded=\{menuOpen\}/);
+  assert.match(page, /hidden md:flex items-center justify-end gap-x-4/);
+  assert.match(page, /md:hidden inline-flex h-11 w-11/);
+  assert.match(page, /whitespace-nowrap/);
+  assert.doesNotMatch(page, /truncate/);
+  assert.match(page, /Escape/);
+  assert.match(page, /pointerdown/);
+});
+
 test('booking page still uses BookingFormWidget and can return home', () => {
   const page = readFileSync(join(src, 'pages/booking/ui/BookingPage.tsx'), 'utf8');
   assert.match(page, /BookingFormWidget/);
